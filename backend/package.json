@@ -1,0 +1,16 @@
+{
+  "name": "sparkpos-backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SparkPOS backend — Express + Mongoose API",
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/index.js",
+    "start": "node --env-file=.env src/index.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "mongoose": "^9.7.1"
+  }
+}
