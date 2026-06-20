@@ -31,6 +31,7 @@ stock adjustments.
 - Item list with search (by name + sku) and filter by category + active/inactive.
 - Manual **stock adjustment** action (e.g. after a physical count): records a StockMovement of
   type `adjustment` and updates stockQty — inside one transaction.
+- add allowNegativeInventory setting flag and a "Negative Stock view" to in scope, since your answer makes them part of this feature now.
 
 **Out of scope (explicitly not now):**
 - Sales, purchases, suppliers, customers, ledgers, COGS calculation.
@@ -76,7 +77,6 @@ New Mongoose collections:
 - **COGS / valuation:** not touched in this spec (no sales/purchases yet). avgCost stays at its
   stored value; default 0.
 - **Edge cases:** it currently says reject-unless-confirmed. Replace that with: "Stock may go negative; the allowNegativeInventory setting (default true) governs this. Negative stock never blocks a transaction and is never shown at point of sale — it surfaces only in the owner's Negative Stock view."
-add allowNegativeInventory setting flag and a "Negative Stock view" to in scope, since your answer makes them part of this feature now.
   deactivating an item never deletes it or its movements.
 
 ## 7. Validation rules
