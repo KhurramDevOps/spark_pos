@@ -75,8 +75,8 @@ New Mongoose collections:
   (`session.withTransaction`) — never update stockQty alone.
 - **COGS / valuation:** not touched in this spec (no sales/purchases yet). avgCost stays at its
   stored value; default 0.
-- **Edge cases:** adjustment that would make stock negative → reject with a clear message
-  unless the owner explicitly confirms (decide with owner); duplicate SKU → reject;
+- **Edge cases:** it currently says reject-unless-confirmed. Replace that with: "Stock may go negative; the allowNegativeInventory setting (default true) governs this. Negative stock never blocks a transaction and is never shown at point of sale — it surfaces only in the owner's Negative Stock view."
+add allowNegativeInventory setting flag and a "Negative Stock view" to in scope, since your answer makes them part of this feature now.
   deactivating an item never deletes it or its movements.
 
 ## 7. Validation rules
@@ -105,12 +105,52 @@ New Mongoose collections:
 - [ ] Tests cover: the adjustment transaction (stock + movement together), and the
       money/validation rules.
 
-## 9. Open questions for the owner
-- What's the full list of base units the shop actually uses?
-- Do you want your own SKU scheme (and a format), or auto-generated SKUs?
-- Should a stock adjustment ever be allowed to go negative (e.g. data-entry catch-up)?
-- Flat categories enough for now, or do you need floor → section → category nesting from day
-  one?
+## 9. Decisions from the owner (answered)
+
+### 9.1 Base units
+Units are physical measures the shop sells by. Confirmed set for launch:
+- `gaz` (yard — for wire and cable)
+- `meter`
+- `kg`
+- `piece`
+- `dozen`
+- `coil`
+- `set`
+
+Stored as a fixed allowed-list (enum) for now. New units can be added later; not a free-text
+field, to keep data clean.
+
+### 9.2 SKU — hybrid (auto-generated, owner-editable)
+- On new item, the system **auto-generates a SKU** by default (so the owner never has to think
+  about it).
+- The SKU field is **editable** — the owner can overwrite the auto value with their own code.
+- Whatever the final value, it must still pass the uniqueness + format validation in section 7
+  (unique, trimmed, no spaces). Reject a manual SKU that collides with an existing one.
+- Auto-format: define a simple readable scheme (e.g. category-prefix + incrementing number) —
+  confirm the exact format during the review step before building.
+
+### 9.3 Negative stock — allowed by default, owner-monitored
+The shop should never block a sale over a stock-count mismatch. Behaviour:
+- **Setting "Allow Negative Inventory" defaults to ON.** (Store-level setting, changeable
+  later.)
+- **Invisible to the cashier/seller:** when stock would go negative, the transaction still
+  completes normally — no error, no warning shown at point of sale.
+- **Surfaced to the owner:** a "Negative Stock" view lists every item currently below zero, so
+  the owner can correct counts at end of day. (The underlying StockMovement records are still
+  written normally, so the trail stays accurate.)
+- This overrides the "reject negative" edge case noted in section 6 — update section 6 to match
+  this decision.
+
+> Note: this setting belongs to a store-level **Settings** concept. A full settings system
+> isn't in scope for this spec, but the `allowNegativeInventory` flag (default true) needs to
+> exist somewhere readable now — agree where during review (simplest: a single Settings
+> document).
+
+### 9.4 Categories — flat for launch, sub-categories later
+- Build a **flat category list** for the initial launch (matches current scope).
+- **Sub-categories** (floor → section → category nesting) are a planned later feature, not
+  built now. The schema already leaves room (a category can gain a `parentId` later without
+  breaking existing data).
 
 ## 10. Notes / decisions
 - `units` array is in the schema now but intentionally unbuilt, so adding multi-unit selling
