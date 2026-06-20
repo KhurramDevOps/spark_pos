@@ -1,0 +1,140 @@
+import test, { before, after, beforeEach } from "node:test";
+import assert from "node:assert/strict";
+import mongoose from "mongoose";
+
+import { createApp } from "../src/app.js";
+import Item from "../src/models/Item.js";
+import Category from "../src/models/Category.js";
+import StockMovement from "../src/models/StockMovement.js";
+import Counter from "../src/models/Counter.js";
+
+const TEST_URI =
+  process.env.TEST_MONGODB_URI ||
+  "mongodb://127.0.0.1:27017/sparkpos_test_http?replicaSet=rs0";
+
+let server;
+let base;
+
+const api = (path, options) => fetch(`${base}${path}`, options);
+const postJson = (path, body) =>
+  api(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+before(async () => {
+  await mongoose.connect(TEST_URI);
+  await Promise.all([Item.init(), Category.init(), StockMovement.init(), Counter.init()]);
+  // Bind to IPv4 loopback on an ephemeral port.
+  await new Promise((resolve) => {
+    server = createApp().listen(0, "127.0.0.1", resolve);
+  });
+  base = `http://127.0.0.1:${server.address().port}/api`;
+});
+
+after(async () => {
+  await new Promise((resolve) => server.close(resolve));
+  await mongoose.connection.dropDatabase();
+  await mongoose.disconnect();
+});
+
+beforeEach(async () => {
+  await Promise.all([
+    Item.deleteMany({}),
+    StockMovement.deleteMany({}),
+    Counter.deleteMany({}),
+    Category.deleteMany({}),
+  ]);
+});
+
+test("full happy path over HTTP: category -> item(opening) -> adjust -> list", async () => {
+  // create category
+  let res = await postJson("/categories", { name: "Wire & Cable" });
+  assert.equal(res.status, 201);
+  const category = await res.json();
+  assert.ok(category._id);
+  assert.equal(category.skuPrefix, "WIRE");
+
+  // create item with opening stock
+  res = await postJson("/items", {
+    name: "GM 7/29 wire",
+    categoryId: category._id,
+    baseUnit: "gaz",
+    retailPrice: 12000,
+    openingQty: "2.5",
+  });
+  assert.equal(res.status, 201);
+  const { item, openingMovement } = await res.json();
+  assert.equal(item.sku, "WIRE-0001");
+  assert.equal(item.stockQty.$numberDecimal, "2.5");
+  assert.ok(openingMovement);
+
+  // adjust to absolute 7 -> delta +4.5
+  res = await postJson(`/items/${item._id}/adjust`, {
+    countedQty: "7",
+    note: "physical count",
+  });
+  assert.equal(res.status, 200);
+  const adj = await res.json();
+  assert.equal(adj.changed, true);
+  assert.equal(adj.delta, "4.5");
+  assert.equal(adj.item.stockQty.$numberDecimal, "7");
+
+  // list with search
+  res = await api("/items?search=gm");
+  const page = await res.json();
+  assert.equal(page.total, 1);
+  assert.equal(page.items[0].sku, "WIRE-0001");
+});
+
+test("validation errors return 400 with a message", async () => {
+  const cat = await (await postJson("/categories", { name: "Misc" })).json();
+  const res = await postJson("/items", {
+    name: "bad",
+    categoryId: cat._id,
+    baseUnit: "gaz",
+    retailPrice: 0, // must be > 0
+  });
+  assert.equal(res.status, 400);
+  const body = await res.json();
+  assert.match(body.error, /retail price/i);
+});
+
+test("duplicate SKU over HTTP returns 409", async () => {
+  const cat = await (await postJson("/categories", { name: "Fans" })).json();
+  const make = () =>
+    postJson("/items", {
+      name: "Fan",
+      categoryId: cat._id,
+      baseUnit: "piece",
+      retailPrice: 5000,
+      sku: "FAN-1",
+    });
+  assert.equal((await make()).status, 201);
+  assert.equal((await make()).status, 409);
+});
+
+test("deactivate then reactivate an item over HTTP", async () => {
+  const cat = await (await postJson("/categories", { name: "Belts" })).json();
+  const { item } = await (
+    await postJson("/items", {
+      name: "Belt",
+      categoryId: cat._id,
+      baseUnit: "piece",
+      retailPrice: 3000,
+    })
+  ).json();
+
+  let res = await postJson(`/items/${item._id}/deactivate`, {});
+  assert.equal((await res.json()).isActive, false);
+
+  // default list (active-only) excludes it
+  let page = await (await api("/items")).json();
+  assert.equal(page.total, 0);
+
+  res = await postJson(`/items/${item._id}/reactivate`, {});
+  assert.equal((await res.json()).isActive, true);
+  page = await (await api("/items")).json();
+  assert.equal(page.total, 1);
+});

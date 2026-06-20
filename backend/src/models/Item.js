@@ -9,6 +9,17 @@ const isInteger = {
   message: "{PATH} must be an integer",
 };
 
+// Locked contract for future multi-unit selling (spec 001 §10). factorToBase is
+// Decimal128 because a sell-unit can be fractional in base units (e.g. a coil =
+// 90.5 gaz). No UI builds these yet — defining the shape so it can't be reshaped.
+const itemUnitSchema = new Schema(
+  {
+    unitName: { type: String, required: true, trim: true },
+    factorToBase: { type: Schema.Types.Decimal128, required: true },
+  },
+  { _id: false }
+);
+
 const itemSchema = new Schema(
   {
     sku: { type: String, required: true, trim: true },
@@ -40,8 +51,8 @@ const itemSchema = new Schema(
     notes: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
 
-    // Future ItemUnit sub-docs (multi-unit selling). Present but unused now.
-    units: { type: [Schema.Types.Mixed], default: [] },
+    // Future ItemUnit sub-docs (multi-unit selling). Shape locked; unused now.
+    units: { type: [itemUnitSchema], default: [] },
   },
   { timestamps: true }
 );

@@ -12,7 +12,10 @@ export function notFound(req, res, next) {
  */
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
-  const status = res.statusCode && res.statusCode !== 200 ? res.statusCode : 500;
+  const status =
+    err.status ||
+    err.statusCode ||
+    (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
   console.error(`[error] ${req.method} ${req.originalUrl}:`, err);
   res.status(status).json({
     error: err.message || "Internal Server Error",

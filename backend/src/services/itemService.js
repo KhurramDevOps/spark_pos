@@ -176,3 +176,120 @@ export async function adjustStock(input, { userId } = {}) {
     return { changed: true, delta, item, movement };
   });
 }
+
+const UPDATABLE_FIELDS = [
+  "name",
+  "categoryId",
+  "baseUnit",
+  "retailPrice",
+  "wholesalePrice",
+  "reorderLevel",
+  "notes",
+  "sku",
+];
+
+/**
+ * Update an item's details. Does NOT touch stockQty (use adjustStock) or
+ * isActive (use setItemActive). Enforces: baseUnit is immutable once any
+ * StockMovement exists for the item; a new categoryId must be an active category.
+ */
+export async function updateItem(id, input, { userId } = {}) {
+  const item = await Item.findById(id);
+  if (!item) {
+    const e = new Error("item not found");
+    e.status = 404;
+    throw e;
+  }
+
+  // baseUnit lock: blocked once stock has ever moved (opening stock counts).
+  if (input.baseUnit !== undefined && input.baseUnit !== item.baseUnit) {
+    const hasMovement = await StockMovement.exists({ itemId: item._id });
+    if (hasMovement) {
+      const e = new Error("baseUnit cannot be changed once stock movements exist for this item");
+      e.status = 409;
+      throw e;
+    }
+  }
+
+  if (input.categoryId !== undefined && String(input.categoryId) !== String(item.categoryId)) {
+    const category = await Category.findById(input.categoryId);
+    if (!category) {
+      const e = new Error("category not found");
+      e.status = 400;
+      throw e;
+    }
+    if (!category.isActive) {
+      const e = new Error("category is inactive");
+      e.status = 400;
+      throw e;
+    }
+  }
+
+  for (const field of UPDATABLE_FIELDS) {
+    if (input[field] !== undefined) {
+      // null clears optional fields (wholesalePrice, notes).
+      item[field] = input[field] === null ? undefined : input[field];
+    }
+  }
+
+  try {
+    await item.save();
+  } catch (err) {
+    rethrowDuplicateSku(err, input.sku ?? item.sku);
+  }
+  return item;
+}
+
+/** Deactivate (soft delete) or reactivate an item. Never deletes data. */
+export async function setItemActive(id, isActive) {
+  const item = await Item.findById(id);
+  if (!item) {
+    const e = new Error("item not found");
+    e.status = 404;
+    throw e;
+  }
+  item.isActive = isActive;
+  await item.save();
+  return item;
+}
+
+/** Escape user input for safe use inside a RegExp. */
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Paginated item list with case-insensitive substring search on name + sku and
+ * optional category / active filters.
+ * @param {object} opts - { search, categoryId, active (bool|undefined=all), page, limit }
+ */
+export async function listItems({ search, categoryId, active, page = 1, limit = 20 } = {}) {
+  const query = {};
+  if (typeof active === "boolean") query.isActive = active;
+  if (categoryId) query.categoryId = categoryId;
+  if (search && search.trim()) {
+    const rx = new RegExp(escapeRegex(search.trim()), "i");
+    query.$or = [{ name: rx }, { sku: rx }];
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const safePage = Math.max(Number(page) || 1, 1);
+
+  const [items, total] = await Promise.all([
+    Item.find(query)
+      .sort({ name: 1 })
+      .collation({ locale: "en", strength: 2 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .populate("categoryId", "name skuPrefix"),
+    Item.countDocuments(query),
+  ]);
+
+  return {
+    items,
+    total,
+    page: safePage,
+    limit: safeLimit,
+    pages: Math.ceil(total / safeLimit),
+  };
+}

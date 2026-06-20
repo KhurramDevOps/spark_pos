@@ -1,5 +1,8 @@
 import express from "express";
 import healthRoutes from "./routes/healthRoutes.js";
+import itemRoutes from "./routes/itemRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import { currentUser } from "./middleware/currentUser.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 /**
@@ -12,7 +15,12 @@ export function createApp() {
 
   app.use(express.json());
 
+  // PLACEHOLDER auth: attaches a dev userId until real login exists.
+  app.use(currentUser);
+
   app.use("/api", healthRoutes);
+  app.use("/api/items", itemRoutes);
+  app.use("/api/categories", categoryRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

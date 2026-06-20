@@ -11,9 +11,11 @@ import { decimalToString } from "../src/lib/decimal.js";
 
 // Transactions require a replica set. Local dev runs a single-node set "rs0"
 // (see backend/README.md). Override with TEST_MONGODB_URI if needed.
+// Own DB per test file: node --test runs files in parallel, so a shared DB
+// would let one file's cleanup clobber another's data.
 const TEST_URI =
   process.env.TEST_MONGODB_URI ||
-  "mongodb://127.0.0.1:27017/sparkpos_test?replicaSet=rs0";
+  "mongodb://127.0.0.1:27017/sparkpos_test_items?replicaSet=rs0";
 
 const userId = new mongoose.Types.ObjectId();
 let category;

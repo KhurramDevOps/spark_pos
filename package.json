@@ -1,0 +1,10 @@
+{
+  "name": "spark-pos",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SparkPOS monorepo root — holds shared validation used by frontend + backend",
+  "dependencies": {
+    "zod": "^4.1.13"
+  }
+}
