@@ -15,6 +15,43 @@ Format:
 
 ---
 
+## ADR-005 — Purchases & weighted-average cost: precision, immutability, paisa rules
+- Date: 2026-06-22
+- Status: accepted
+- Context: Phase 2 (spec 003) records stock-in and makes `Item.avgCost` a real moving number via
+  weighted-average. The cost math, its precision, and the (im)mutability of purchases are
+  expensive to change once real cost history exists — Phase 3 reads avgCost for COGS.
+- Decision:
+  - **avgCost = weighted-average, fixed scale 10 fractional digits of paisa, round-half-even.**
+    Division (`17000/150 = 113.333…`) can't be exact, so avgCost is kept to 10 fractional paisa
+    digits with banker's rounding — NOT whole-paisa (rounding cost every purchase is the COGS
+    drift PROJECT_PLAN §4.1 warns about). Exact `add`/`multiply` and `divide(a,b,scale,rounding)`
+    are implemented with BigInt in `lib/decimal.js`; no decimal library, no floats.
+  - **oldQty floored at 0 in BOTH numerator and denominator of the average:**
+    `effectiveOld = max(oldQty,0)`; `newAvg = (effectiveOld·oldAvg + qty·unitCost) / (effectiveOld
+    + qty)`; `stockQty = oldQty + qty` (real, may stay negative). Flooring stops negative stock
+    corrupting cost AND removes divide-by-zero (the divisor is always ≥ qty > 0). effectiveOld = 0
+    ⇒ avg = unitCost.
+  - **Paisa rules (two separate ones):** `unitCost`/`avgCost`/`lineTotal` are **Decimal128 paisa**
+    (cost basis, full precision); the purchase **`total` / supplier payable is WHOLE paisa**
+    (real money owed). unitCost entered in rupees (≤2dp, `0` allowed) via a **shared money
+    validator lifted from spec 002** (one rupee→paisa rule for import + purchases). Totals are
+    computed server-side; client-sent totals are ignored.
+  - **Posted purchases are immutable.** avgCost is path-dependent (applied in **posting order**,
+    not the `date` field — backdating does not reorder cost history), so editing can't cleanly
+    recompute history. Mistakes are fixed by a reversing entry (**spec 003b, built next**).
+    Caveat: a reversal fixes stock/payables exactly but **cannot losslessly restore avgCost** —
+    you can't un-average. The true repair path is **replay-from-`costAtTime`**, which is why every
+    purchase StockMovement stores `costAtTime` (the unit cost paid).
+  - **One transaction per purchase**, reading item state inside the txn; lines processed
+    sequentially (duplicate item across lines builds on the running value); credit purchases
+    update `supplier.balance` in the same txn; supplier balance may go negative (advance).
+- Consequences: avgCost carries up to 10 fractional paisa digits (negligible storage, near-zero
+  drift over thousands of purchases). Immutability means a returns/reversal spec (003b) is
+  effectively mandatory and must ship before heavy real use; until then mongodump is the
+  safeguard. Cost basis and money-owed diverge by sub-paisa on fractional-qty purchases — by
+  design (you can't owe a fraction of a paisa, but cost must stay precise).
+
 ## ADR-004 — CSV bulk import: insert-only, two-phase with a server stash, locked headers
 - Date: 2026-06-20
 - Status: accepted

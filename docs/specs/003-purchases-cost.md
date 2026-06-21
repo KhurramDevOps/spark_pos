@@ -1,11 +1,16 @@
 # Spec: 003 — Purchases & weighted-average cost
 
-- **Status:** draft
+- **Status:** in-progress (decisions confirmed by owner 2026-06-22; building math + cost service)
 - **Phase:** Phase 2 — Purchases & cost
-- **Author / date:** <you> / <fill in>
+- **Author / date:** owner / 2026-06-22
 - **Builds on:** spec 001 (Item.avgCost as Decimal128; StockMovement with `purchase` type
   already in the enum; costAtTime as Decimal128; rs0 transactions; per-operation transaction
-  rule).
+  rule). Reuses the rupee→paisa money parsing from spec 002 (lifted into a shared validator).
+- **Decisions recorded in:** `docs/DECISIONS.md` ADR-005 (division scale + rounding; immutable
+  purchases + reversal can't restore avgCost; paisa rules; oldQty flooring; posting-order).
+- **Follow-up:** **spec 003b — purchase returns / reversals**, built immediately after this
+  (immutability needs it; see §6). Do not put purchases into real daily use relying on DB
+  restore as the only fix for a mistyped purchase.
 
 ## 1. Problem / goal
 Record stock coming IN — what was bought, how much, and at what cost — so that (a) stock goes
@@ -67,13 +72,16 @@ the owner buys on credit or repeatedly from the same supplier.
   rejected; credit purchase with no supplier → require a supplier (you can't owe "nobody").
 
 ## 5. Data model changes
-- **Supplier** (new) — name (required), phone (optional), openingBalance (Decimal128, default
-  0), balance (Decimal128, what the owner currently owes — cached, updated in txn), isActive,
+- **Supplier** (new) — name (required, 1–120), phone (optional), openingBalance (Decimal128,
+  default 0, ≥ 0), balance (Decimal128, what the owner currently owes — cached, updated in txn;
+  **set = openingBalance on create**, then runs; **may go negative** = advance), isActive,
   timestamps.
-- **Purchase** (new) — date, supplierId (ref Supplier, **optional**), paymentType (enum:
-  cash|credit), lines: [{ itemId, qty (Decimal128), unitCost (Decimal128, paisa or rupees —
-  see §6), lineTotal (Decimal128) }], total (Decimal128), note (optional), createdBy (ref
-  User, required), timestamps.
+- **Purchase** (new, **immutable once posted**) — date, supplierId (ref Supplier, **optional**),
+  paymentType (enum: cash|credit), lines: [{ itemId, qty (Decimal128), unitCost (Decimal128
+  **paisa**), lineTotal (Decimal128 paisa, full precision) }], total (Decimal128 **whole
+  paisa** — the payable), note (optional), createdBy (ref User, required), timestamps. Stored
+  totals are a historical snapshot (never recomputed — consistent with immutability), computed
+  server-side.
 - **SupplierPayment** (new) — supplierId (required), amount (Decimal128), date, note, createdBy,
   timestamps. (Payments the owner makes to a supplier to reduce what's owed.)
 - **StockMovement** — reuse existing; purchases write type `purchase` with costAtTime = the
@@ -83,54 +91,90 @@ the owner buys on credit or repeatedly from the same supplier.
 No change to Counter/Settings/Category.
 
 ## 6. Business rules (be precise — this is where bugs live)
-- **Weighted-average cost — the core formula.** On each purchase line for an item:
+
+- **Weighted-average cost — the core formula (per line, in paisa).**
   ```
-  newQty      = oldQty + purchasedQty
-  newAvgCost  = ((oldQty * oldAvgCost) + (purchasedQty * unitCost)) / newQty
+  effectiveOld   = max(oldQty, 0)        // floor negative stock to 0 for the average
+  newAvgCost     = (effectiveOld·oldAvgCost + purchasedQty·unitCost)
+                   / (effectiveOld + purchasedQty)
+  stockQty(new)  = oldQty + purchasedQty // REAL arithmetic — may stay negative or hit 0
   ```
-  All in Decimal128. Guard the edge cases:
-  - If oldQty is 0 (or negative — possible since stock can go negative): newAvgCost = unitCost
-    (don't divide weirdly; the new stock simply takes the purchase cost). Decide the
-    negative-oldQty handling explicitly in review — recommend: treat oldQty floored at 0 for
-    the average so a negative stock doesn't corrupt cost, but still add the purchased qty.
-  - newAvgCost is NOT rounded to whole paisa — keep full Decimal128 precision (rounding every
-    purchase is the COGS-drift failure mode PROJECT_PLAN §4.1 warns about).
+  Note the **two different "new quantities"**: the average's denominator is
+  `effectiveOld + purchasedQty` (always `> 0`, since `purchasedQty > 0`), while the item's new
+  `stockQty` uses the real `oldQty + purchasedQty`. They are not the same value and must not be
+  conflated. Flooring `oldQty` at 0 in **both** numerator and denominator (a) stops negative
+  stock from corrupting cost and (b) **eliminates divide-by-zero** (e.g. `oldQty = -50`, buy
+  `50` → real `stockQty = 0`, but the average divides by `50`, giving `avg = unitCost`).
+  - `oldQty = 0` → `avg = unitCost` (falls out of the formula; first purchase sets the cost).
+  - `oldQty < 0` → `avg = unitCost` (effectiveOld = 0).
+- **avgCost precision: fixed scale 10, round-half-even.** Division can't be exact
+  (`17000/150 = 113.333…`), so avgCost is kept to **10 fractional digits of paisa** with
+  **round-half-even** (banker's). This is NOT whole-paisa rounding — rounding cost to whole paisa
+  every purchase is the COGS-drift failure mode PROJECT_PLAN §4.1 warns about. (Worked example:
+  100 @ 11000p then 50 @ 12000p → `11333.3333333333` paisa.)
+- **Money is computed with exact BigInt arithmetic** in `lib/decimal.js` (`add`, `multiply`
+  exact; `divide(a, b, scale, rounding)`). No floats. Do not add a decimal library.
 - **One transaction per purchase.** All lines' stock increments + avgCost updates + the
   StockMovement writes + the supplier-balance update (if credit) happen in a single
-  `session.withTransaction`. Either the whole purchase posts or none of it does. (A purchase
-  with bad data must not leave half the items updated.)
-- **Money unit:** prices in spec 001 are integer paisa; costs here are finer (avgCost is
-  Decimal128). Decide and state ONE rule: unitCost entered in rupees, stored as Decimal128
-  paisa (recommend — keeps it consistent with avgCost being Decimal128 paisa). Confirm in
-  review. Reject >2 decimal places in the rupee input, same as import.
-- **Supplier optional, except:** paymentType=credit REQUIRES a supplier (can't owe nobody).
+  `session.withTransaction`. Either the whole purchase posts or none of it does.
+- **Read item state INSIDE the transaction** (oldQty/oldAvg), like `adjustStock` does. Concurrent
+  purchases of the same item resolve via Mongo's write-conflict retry in `withTransaction`.
+  Computing avgCost from a pre-txn read would corrupt under concurrency.
+- **Lines are processed sequentially; duplicate item across lines builds on the running value.**
+  Two lines for the same `itemId` in one purchase apply in order — line 2's avgCost uses the
+  running stock/avg after line 1, not the original snapshot. (Implementation: keep the item doc
+  in memory across the lines within the txn; save once.)
+- **Money unit:** unitCost entered in **rupees**, stored as **Decimal128 paisa** (consistent with
+  avgCost). Reject > 2 decimal places in the rupee input. `unitCost = 0` is allowed (free
+  samples) — it will legitimately pull avgCost down. The rupee→paisa + >2dp logic is the **shared
+  money validator** lifted from spec 002 — do not duplicate it.
+- **Totals/payables round to WHOLE paisa; avgCost keeps full scale (two separate rules).**
+  `lineTotal = purchasedQty·unitCost` can be fractional paisa (fractional qty); the **purchase
+  `total` (the payable) is rounded to whole paisa** — you can't owe a fraction of a paisa.
+  avgCost is unaffected (it uses qty·unitCost directly, never the rounded total). Totals are
+  **computed server-side; a client-sent total is ignored.**
+- **Supplier optional, except:** paymentType=credit REQUIRES a supplier (can't owe nobody);
   paymentType=cash → supplier optional.
-- **Payables:** credit purchase → supplier.balance += purchase.total (in same txn).
-  SupplierPayment → supplier.balance -= amount (in its own txn). Balance may not go below the
-  supplier's real position — but allow it to (over-payment/advance) and surface, rather than
-  block; decide in review.
-- **Quantities** in the item's base unit; Decimal128; must be > 0 per line. Reject invalid
-  decimals (never coerce), same rule as everywhere.
-- **No edit of a posted purchase (recommended).** Because avgCost is path-dependent (it depends
-  on the order of purchases), editing a past purchase can't cleanly recompute history. Default:
-  posted purchases are immutable; mistakes are fixed with a reversing/correcting entry. Confirm
-  — this is a hard-to-change decision.
+- **Payables:** credit purchase → `supplier.balance += total` (same txn). SupplierPayment →
+  `supplier.balance -= amount` (its own txn — two collections). `balance = openingBalance` on
+  supplier create, then runs. **Balance may go negative** (advance/overpayment) — allow and
+  surface as "advance / supplier owes you"; never block a payment.
+- **Quantities** in the item's base unit; Decimal128; **must be > 0** per line (use the new
+  `positiveDecimalString` validator). Reject invalid decimals (never coerce).
+- **Active item required.** A line's `itemId` must reference an **active** item; restocking a
+  deactivated item means reactivating it first (clear message otherwise).
+- **Backdating does NOT reorder cost history.** `date` is a label; avgCost is applied in
+  **posting order**, not date order. A backdated purchase still updates avgCost as-of-now.
+- **No edit of a posted purchase — immutable (one-way decision).** avgCost is path-dependent, so
+  editing a past purchase can't cleanly recompute history. Mistakes are fixed by a
+  reversing/correcting entry (**spec 003b**, built next). Important caveat: a reversal can fix
+  **stock and payables exactly, but cannot losslessly restore avgCost** (you can't un-average a
+  weighted average). The true repair path is **replay-from-`costAtTime`** — which is why every
+  purchase StockMovement stores `costAtTime` (the unit cost paid). Until 003b ships, a backup
+  (mongodump, see backend/README.md) is the interim safeguard.
 - **createdBy required** on Purchase, SupplierPayment, and the purchase StockMovements (audit).
 
 ## 7. Validation rules
 - Purchase: ≥ 1 line; date valid; paymentType in {cash, credit}; if credit, supplierId required.
-- Line: itemId references an existing active item; qty Decimal128 > 0; unitCost ≥ 0 (rupees,
-  ≤ 2 dp).
+- Line: itemId references an existing **active** item; qty Decimal128 **> 0** (new
+  `positiveDecimalString`); unitCost ≥ 0 (rupees, **≤ 2 dp** via the shared money validator;
+  0 allowed).
 - Supplier: name required, 1–120 chars; phone optional; openingBalance ≥ 0.
 - SupplierPayment: supplierId required; amount Decimal128 > 0.
-- Same Zod-shared-shape approach as prior specs.
+- Same Zod-shared-shape approach as prior specs. **New shared pieces:** `positiveDecimalString`
+  (>0) in `shared/validation/common.js`, and the **rupee-money validator** (≤2dp, ≥0) lifted
+  from spec 002's import path so import and purchases share one rupee→paisa rule.
 
 ## 8. Acceptance criteria (checklist)
 - [ ] Can record a cash purchase with multiple lines; stock increases for each item; no supplier
       required.
-- [ ] avgCost updates by the exact weighted-average formula — verified with a worked example
-      (e.g. 100 @ 110 then 50 @ 120 → avg = 113.333…, full precision, not rounded).
+- [ ] avgCost updates by the weighted-average formula at scale 10, round-half-even — verified
+      with the worked example (100 @ 11000p then 50 @ 12000p → `11333.3333333333` paisa).
 - [ ] oldQty = 0 case: first purchase sets avgCost = unitCost.
+- [ ] negative-oldQty floors to 0 (avg = unitCost); the `oldQty = -50, buy 50` case (real
+      stockQty → 0) does NOT divide by zero.
+- [ ] duplicate item across two lines in one purchase: line 2 builds on line 1's running avg.
+- [ ] purchase total is whole paisa (payable); avgCost keeps full scale; client-sent total ignored.
 - [ ] Each purchase line writes a StockMovement type `purchase` with costAtTime + createdBy.
 - [ ] Whole purchase is one transaction: force a mid-purchase failure → nothing persists (no
       partial stock/avgCost updates, no orphan movements).
@@ -146,24 +190,41 @@ No change to Counter/Settings/Category.
       single-transaction atomicity of a multi-line purchase, supplier balance on credit + on
       payment, and validation.
 
-## 9. Open questions for the owner / review
-1. **Negative-oldQty avgCost handling** (§6) — floor oldQty at 0 for the average (recommend), or
-   another rule? This only matters once sales can drive stock negative (Phase 3), but the
-   formula is set here.
-2. **Posted purchases immutable** (§6) — confirm no-edit + reverse-via-correcting-entry, given
-   avgCost is path-dependent. (Recommend yes; it's a one-way decision.)
-3. **unitCost storage** — rupees-in → Decimal128 paisa stored (recommend, consistent with
-   avgCost). Confirm.
-4. **Purchase returns** — out of scope for now, handle as a later spec? Or needed at launch?
-5. **Supplier balance below zero** (advance/overpayment) — allow and surface, or block? (Recommend
-   allow + surface.)
-6. **Do you want a running "total stock value" figure** (sum of qty × avgCost) shown anywhere
-   now, or defer to the reports phase? (It's nearly free once avgCost is live.)
+## 9. Decisions from the owner (answered 2026-06-22)
+1. **Negative/zero-oldQty → floor at 0 in BOTH numerator and denominator** (§6). Eliminates
+   divide-by-zero; negative stock can't corrupt cost. `avg = unitCost` when effectiveOld = 0.
+2. **Posted purchases immutable** (§6). Reverse via a correcting entry — **spec 003b, built next**
+   (don't rely on DB restore as the only fix). A reversal fixes stock/payables exactly but
+   **cannot losslessly restore avgCost**; replay-from-`costAtTime` is the true repair path.
+3. **unitCost rupees-in → Decimal128 paisa, reject >2dp** (§6). `unitCost = 0` allowed (samples).
+   Rupee→paisa logic **lifted into a shared money validator** (used by import + purchases).
+4. **Purchase returns/reversals → spec 003b, immediately after this** (not "someday" — immutability
+   needs it).
+5. **Supplier balance may go negative** (advance/overpayment) — allow + surface; never block a
+   payment.
+6. **Total stock value deferred to the reports phase**; when built, **computed live** (Σ qty·avgCost),
+   **never cached**.
+
+Also fixed (from review): division **scale 10, round-half-even**; **avgCost full scale vs
+totals/payables whole paisa** (two rules); **lines processed sequentially** (duplicate item
+builds on running value); **read item state inside the txn**; **active item required**;
+**balance = openingBalance on create**; **backdating doesn't reorder cost history** (posting
+order governs); add **`positiveDecimalString` (>0)** validator.
 
 ## 10. Notes / decisions
 - The whole point of Phase 2 is correct cost data; Phase 3 (sales) reads avgCost for COGS with
   no rework. Do not compute any profit here.
 - Reuse the per-operation transaction pattern and Decimal128 money/qty handling from specs
-  001/002 — do not invent a second cost-math path.
-- Record the hard-to-change decisions (immutable purchases, unitCost storage, negative-oldQty
-  rule) in DECISIONS.md.
+  001/002 — do not invent a second cost-math path. The exact arithmetic (`add`/`multiply`/
+  `divide`) lives in `lib/decimal.js`.
+- Hard-to-change decisions recorded in `docs/DECISIONS.md` **ADR-005**: division scale+rounding,
+  immutability + reversal-can't-restore-avgCost, paisa rules (cost full scale / payable whole),
+  oldQty flooring, posting-order.
+
+## 11. Build order
+0. `lib/decimal.js` arithmetic (`add`, `multiply`, `divide` with scale+half-even) + tests.
+1. Models (Supplier, Purchase, SupplierPayment) + the cost service `recordPurchase` with the
+   weighted-average / edge / single-transaction-atomicity tests. **← pause; show cost math green.**
+2. Routes (purchases, suppliers, payments) + the shared money validator lift.
+3. Purchase UI (new-purchase form, purchase history).
+4. Suppliers / payments (supplier list + balances, record-payment).

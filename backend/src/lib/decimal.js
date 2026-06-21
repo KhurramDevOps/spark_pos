@@ -1,10 +1,11 @@
 /**
- * Exact decimal arithmetic for stock quantities.
+ * Exact decimal arithmetic for stock quantities and money (paisa).
  *
  * Quantities are stored as Decimal128 (the shop sells wire/cable/copper in
- * fractional gaz/meter/kg). We never use JS floats for them. The little math we
- * need (the stock-adjustment delta = counted − current) is done with BigInt on
- * scaled integers, which is exact, instead of adding a decimal library.
+ * fractional gaz/meter/kg), and from spec 003 weighted-average cost (avgCost) is
+ * computed here too. We never use JS floats. add/subtract/multiply are EXACT on
+ * BigInt scaled integers; divide is the one inexact op (e.g. 17000/150) and so
+ * takes an explicit fractional `scale` and a rounding mode — no decimal library.
  *
  * Inputs arrive from the API as strings (see spec 001 §6). These helpers REJECT
  * anything that isn't a finite decimal — they never coerce to 0 or NaN.
@@ -67,18 +68,118 @@ export function normalize(s) {
   return scaledToString(value, scale);
 }
 
+/** Internal: align two scaled values to a common scale; returns { xv, yv, scale }. */
+function align(a, b, aField, bField) {
+  const x = toScaled(parseDecimal(a, aField));
+  const y = toScaled(parseDecimal(b, bField));
+  const scale = Math.max(x.scale, y.scale);
+  return {
+    xv: x.value * 10n ** BigInt(scale - x.scale),
+    yv: y.value * 10n ** BigInt(scale - y.scale),
+    scale,
+  };
+}
+
+/**
+ * Exact addition: returns (a + b) as a normalized decimal string.
+ * @param {string|number} a
+ * @param {string|number} b
+ */
+export function add(a, b, aField = "a", bField = "b") {
+  const { xv, yv, scale } = align(a, b, aField, bField);
+  return scaledToString(xv + yv, scale);
+}
+
 /**
  * Exact subtraction: returns (a − b) as a normalized decimal string.
  * @param {string|number} a
  * @param {string|number} b
  */
 export function subtract(a, b, aField = "a", bField = "b") {
+  const { xv, yv, scale } = align(a, b, aField, bField);
+  return scaledToString(xv - yv, scale);
+}
+
+/**
+ * Exact multiplication: returns (a × b) as a normalized decimal string.
+ * Scale of the product is the sum of the input scales (no rounding needed).
+ * @param {string|number} a
+ * @param {string|number} b
+ */
+export function multiply(a, b, aField = "a", bField = "b") {
   const x = toScaled(parseDecimal(a, aField));
   const y = toScaled(parseDecimal(b, bField));
-  const scale = Math.max(x.scale, y.scale);
-  const xv = x.value * 10n ** BigInt(scale - x.scale);
-  const yv = y.value * 10n ** BigInt(scale - y.scale);
-  return scaledToString(xv - yv, scale);
+  return scaledToString(x.value * y.value, x.scale + y.scale);
+}
+
+/** Rounding modes for divide/round. */
+export const HALF_EVEN = "half-even"; // banker's — default for cost (no upward bias)
+export const HALF_UP = "half-up";
+
+/**
+ * Apply a rounding mode to a truncated quotient using the remainder.
+ * @param {bigint} q - truncated (toward zero) quotient magnitude
+ * @param {bigint} r - remainder magnitude (>= 0)
+ * @param {bigint} d - divisor magnitude (> 0)
+ * @param {string} mode
+ * @returns {bigint} possibly-incremented magnitude
+ */
+function applyRounding(q, r, d, mode) {
+  if (r === 0n) return q;
+  const twice = r * 2n;
+  if (mode === HALF_UP) {
+    return twice >= d ? q + 1n : q;
+  }
+  // HALF_EVEN
+  if (twice > d) return q + 1n;
+  if (twice < d) return q;
+  return q % 2n === 0n ? q : q + 1n; // exactly half -> round to even
+}
+
+/**
+ * Division to a fixed number of fractional digits with an explicit rounding mode.
+ * This is the only inexact operation; the caller chooses precision. Used for
+ * weighted-average cost (spec 003: scale 10, HALF_EVEN). Throws on divide-by-zero.
+ * @param {string|number} a - dividend
+ * @param {string|number} b - divisor
+ * @param {number} scale - fractional digits to keep (>= 0)
+ * @param {string} [rounding] - HALF_EVEN (default) | HALF_UP
+ * @returns {string} normalized quotient string
+ */
+export function divide(a, b, scale, rounding = HALF_EVEN) {
+  if (!Number.isInteger(scale) || scale < 0) {
+    throw new Error(`divide: scale must be a non-negative integer (got ${scale})`);
+  }
+  const x = toScaled(parseDecimal(a, "dividend"));
+  const y = toScaled(parseDecimal(b, "divisor"));
+  if (y.value === 0n) throw new Error("divide: division by zero");
+
+  const neg = x.value < 0n !== y.value < 0n;
+  // We want (x / y) to `scale` fractional digits. Scale the numerator up so that
+  // integer division yields exactly `scale` extra digits, accounting for the
+  // input scales: result_value/10^scale = (x.value/10^x.scale)/(y.value/10^y.scale).
+  let num = absBig(x.value) * 10n ** BigInt(scale + y.scale);
+  const den = absBig(y.value) * 10n ** BigInt(x.scale);
+  const q = num / den;
+  const r = num % den;
+  const rounded = applyRounding(q, r, den, rounding);
+  return scaledToString(neg ? -rounded : rounded, scale);
+}
+
+/**
+ * Round a decimal to `scale` fractional digits (e.g. a payable to whole paisa
+ * with scale 0). Implemented as divide-by-one.
+ * @param {string|number} value
+ * @param {number} scale
+ * @param {string} [rounding]
+ */
+export function round(value, scale, rounding = HALF_EVEN) {
+  return divide(value, "1", scale, rounding);
+}
+
+/** Internal: absolute value of a BigInt. */
+function absBig(v) {
+  return v < 0n ? -v : v;
 }
 
 /** True if the (valid) decimal string represents zero. */
