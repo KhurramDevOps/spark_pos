@@ -5,6 +5,7 @@ import { useItems, useCategories, useDeactivateItem, useReactivateItem } from ".
 import ItemForm from "../features/inventory/ItemForm";
 import AdjustStockModal from "../features/inventory/AdjustStockModal";
 import CategoryManager from "../features/inventory/CategoryManager";
+import ImportModal from "../features/inventory/ImportModal";
 
 const LIMIT = 20;
 
@@ -21,12 +22,15 @@ export default function InventoryPage() {
   const [active, setActive] = useState("true");
   const [page, setPage] = useState(1);
 
-  // Debounce the search box and reset to page 1 on any filter change.
+  // Debounce the search box; resetting to page 1 happens where each filter
+  // changes (here in the debounce callback, and in the select handlers below).
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
     return () => clearTimeout(t);
   }, [searchInput]);
-  useEffect(() => setPage(1), [search, categoryId, active]);
 
   const { data, isLoading, isError, error } = useItems({
     search,
@@ -42,6 +46,7 @@ export default function InventoryPage() {
   const [formItem, setFormItem] = useState(undefined); // undefined = closed, null = new
   const [adjustItem, setAdjustItem] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [rowError, setRowError] = useState("");
 
   const items = data?.items ?? [];
@@ -71,6 +76,9 @@ export default function InventoryPage() {
           <Button variant="secondary" onClick={() => setShowCategories(true)}>
             Categories
           </Button>
+          <Button variant="secondary" onClick={() => setShowImport(true)}>
+            Import CSV
+          </Button>
           <Button onClick={() => setFormItem(null)} disabled={categories.filter((c) => c.isActive).length === 0}>
             + Add item
           </Button>
@@ -92,7 +100,7 @@ export default function InventoryPage() {
           onChange={(e) => setSearchInput(e.target.value)}
         />
         <div className="w-48">
-          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <Select value={categoryId} onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}>
             <option value="">All categories</option>
             {categories.map((c) => (
               <option key={c._id} value={c._id}>
@@ -102,7 +110,7 @@ export default function InventoryPage() {
           </Select>
         </div>
         <div className="w-40">
-          <Select value={active} onChange={(e) => setActive(e.target.value)}>
+          <Select value={active} onChange={(e) => { setActive(e.target.value); setPage(1); }}>
             <option value="true">Active only</option>
             <option value="false">Inactive only</option>
             <option value="all">All</option>
@@ -186,6 +194,7 @@ export default function InventoryPage() {
       )}
       {adjustItem && <AdjustStockModal item={adjustItem} onClose={() => setAdjustItem(null)} />}
       {showCategories && <CategoryManager onClose={() => setShowCategories(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </div>
   );
 }

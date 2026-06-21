@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
+import * as importApi from "./importApi";
 
 export function useItems(filters) {
   return useQuery({
@@ -35,6 +36,16 @@ export const useAdjustStock = () =>
   useInvalidatingMutation(({ id, body }) => api.adjustStock(id, body));
 export const useDeactivateItem = () => useInvalidatingMutation((id) => api.deactivateItem(id));
 export const useReactivateItem = () => useInvalidatingMutation((id) => api.reactivateItem(id));
+
+// ---- CSV import -----------------------------------------------------------
+
+/** Dry-run preview — no cache invalidation (nothing is written yet). */
+export const usePreviewImport = () =>
+  useMutation({ mutationFn: ({ text, filename }) => importApi.previewImport(text, filename) });
+
+/** Commit — creates items + categories, so refresh both lists. */
+export const useCommitImport = () =>
+  useInvalidatingMutation((token) => importApi.commitImport(token), { categories: true });
 
 export const useCreateCategory = () =>
   useInvalidatingMutation((body) => api.createCategory(body), { categories: true });

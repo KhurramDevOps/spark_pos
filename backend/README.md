@@ -67,6 +67,23 @@ npm test         # node --test over tests/**/*.test.js
 Tests connect to `mongodb://127.0.0.1:27017/sparkpos_test?replicaSet=rs0` (override with
 `TEST_MONGODB_URI`). They require the replica set above, drop the test DB on teardown.
 
+## Backups
+
+There is **no per-item undo** for a bulk CSV import (spec 002) — take a backup before a large
+import so a bad file can be rolled back wholesale. `mongodump`/`mongorestore` work against the
+`rs0` replica set via `$MONGODB_URI`:
+
+```bash
+# Backup before a large import
+mongodump --uri="$MONGODB_URI" --out="./backups/$(date +%Y-%m-%d-%H%M)"
+
+# Restore (drops existing collections first, then reloads the dump)
+mongorestore --uri="$MONGODB_URI" --drop ./backups/<folder>
+```
+
+`./backups/` is local scratch — keep it out of version control. (`mongodump` ships with the
+MongoDB Database Tools; `brew install mongodb-database-tools` if the command is missing.)
+
 ## Layout (Phase 1 so far)
 
 ```
