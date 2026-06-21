@@ -2,6 +2,7 @@ import express from "express";
 import healthRoutes from "./routes/healthRoutes.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
+import importRoutes from "./routes/importRoutes.js";
 import { currentUser } from "./middleware/currentUser.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -21,6 +22,7 @@ export function createApp() {
   app.use("/api", healthRoutes);
   app.use("/api/items", itemRoutes);
   app.use("/api/categories", categoryRoutes);
+  app.use("/api/imports", importRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -15,6 +15,44 @@ Format:
 
 ---
 
+## ADR-004 — CSV bulk import: insert-only, two-phase with a server stash, locked headers
+- Date: 2026-06-20
+- Status: accepted
+- Context: Spec 002 adds bulk item import from a spreadsheet — the main bottleneck to cataloguing
+  the real shop. Several choices here are expensive to reverse once owners have prepared files
+  and run imports against a live catalogue.
+- Decision:
+  - **CSV only**, parsed server-side with **papaparse** (the one approved new dependency). The
+    browser POSTs the file's raw text as a `text/csv` body — **no multipart upload library**
+    (e.g. multer). `.xlsx`/SheetJS deferred.
+  - **Insert-only.** A row whose SKU already exists (active or inactive) is an error/skip, never
+    an update. Update-on-collision is a one-way door (workflows would come to depend on it); an
+    opt-in update mode with a per-field-diff preview can be added later without breaking anyone.
+  - **Two-phase preview → commit via a short-lived in-memory server stash keyed by a random
+    import token (+ TTL).** Commit sends only the token; the server re-reads and re-validates the
+    stashed upload — it never trusts a client-echoed preview. The durable audit record is the
+    `ImportLog`, not the stash.
+  - **Preview never writes and never burns the SKU counter.** Auto-SKUs are generated (atomic
+    per-prefix counter, ADR per spec 001 §9.2) **only at commit**; preview shows `(auto)`. A test
+    asserts the `Counter` collection is unchanged after a preview. (Burning numbers in preview
+    would leave permanent gaps and make previewed SKUs mismatch committed ones.)
+  - **Locked template headers** (exact strings): `name, categoryName, baseUnit, retailPrice,
+    wholesalePrice, reorderLevel, openingStock, sku`. Required: the first four. Matching is
+    case-insensitive/trimmed with a leading BOM stripped. Renaming them breaks owners' saved
+    files, so they are fixed.
+  - **New `ImportLog` collection** (filename, createdBy, counts, error report, timestamp), one
+    document per commit — the only audit trail for an operation with no per-item undo.
+  - Categories referenced by name are auto-created **up front** (before any row transaction),
+    deduped case-insensitively including within the file; prefix via existing `deriveSkuPrefix()`
+    with no special collision handling. Money: rupees→paisa (`×100`), **reject >2 decimal places
+    and any separators/symbols** (never round money). Cap **10,000 rows / 10 MB**. Commit is a
+    loop of per-row transactions over the existing `createItem()` service. Import is **owner-only**.
+- Consequences: Simpler, safer first version (pure inserts, no merge semantics, no interaction
+  with `baseUnit` immutability). The stash makes the server briefly stateful between the two
+  calls (bounded by TTL + size cap; lost on restart → owner re-uploads). Per-row transactions
+  cost throughput but keep each row atomic and reuse tested code. Adding update mode or `.xlsx`
+  later is additive.
+
 ## ADR-003 — MongoDB runs as a replica set (transactions); decimal precision split
 - Date: 2026-06-20
 - Status: accepted
