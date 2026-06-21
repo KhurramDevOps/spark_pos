@@ -11,3 +11,13 @@ export const objectId = z.string().regex(/^[0-9a-fA-F]{24}$/, "invalid id");
 export const nonNegativeDecimalString = z
   .string()
   .regex(/^\d+(\.\d+)?$/, "must be a non-negative decimal (e.g. \"2.5\")");
+
+/**
+ * A strictly-positive decimal *string* (> 0). Same format as above, but rejects
+ * zero ("0", "0.0", "0.00") — there must be at least one non-zero digit. Used for
+ * purchase line quantities (spec 003 §7).
+ */
+export const positiveDecimalString = z
+  .string()
+  .regex(/^\d+(\.\d+)?$/, "must be a positive decimal (e.g. \"2.5\")")
+  .refine((v) => /[1-9]/.test(v), "must be greater than 0");

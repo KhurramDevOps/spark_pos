@@ -9,6 +9,7 @@
  */
 import Papa from "papaparse";
 import { BASE_UNITS } from "../../../shared/validation/item.js";
+import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 // Locked template headers (spec 002 §7.1 / ADR-004). Order matters for the template.
 export const HEADERS = [
@@ -93,22 +94,6 @@ function isBlank(v) {
   return v === undefined || v === null || String(v).trim() === "";
 }
 
-/** Parse a rupee price string into integer paisa. Rejects separators and >2 dp. */
-function parseRupeesToPaisa(raw, fieldName) {
-  const s = String(raw).trim();
-  if (!DECIMAL_RE.test(s)) {
-    return {
-      error: `${fieldName} must be a number — digits and a single optional decimal point only (no commas or currency symbols)`,
-    };
-  }
-  const [intPart, fracPart = ""] = s.split(".");
-  if (fracPart.length > 2) {
-    return { error: `${fieldName} has more than 2 decimal places ("${s}") — enter rupees and paisa only` };
-  }
-  const paisa = Number(intPart) * 100 + Number(fracPart.padEnd(2, "0") || "0");
-  return { value: paisa };
-}
-
 /**
  * Normalize one raw CSV row into createItem input, collecting ALL field errors
  * (don't stop at the first) so the owner can fix everything in one pass.
@@ -144,7 +129,7 @@ export function normalizeRow(raw, rowNumber) {
   if (isBlank(raw.retailPrice)) {
     errors.push("retailPrice is required");
   } else {
-    const r = parseRupeesToPaisa(raw.retailPrice, "retailPrice");
+    const r = rupeesToPaisa(raw.retailPrice, "retailPrice");
     if (r.error) errors.push(r.error);
     else if (r.value <= 0) errors.push("retailPrice must be greater than 0");
     else data.retailPrice = r.value;
@@ -152,7 +137,7 @@ export function normalizeRow(raw, rowNumber) {
 
   // wholesalePrice — optional, rupees >= 0.
   if (!isBlank(raw.wholesalePrice)) {
-    const w = parseRupeesToPaisa(raw.wholesalePrice, "wholesalePrice");
+    const w = rupeesToPaisa(raw.wholesalePrice, "wholesalePrice");
     if (w.error) errors.push(w.error);
     else data.wholesalePrice = w.value;
   }

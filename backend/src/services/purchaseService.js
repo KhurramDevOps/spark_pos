@@ -3,6 +3,7 @@ import Item from "../models/Item.js";
 import Supplier from "../models/Supplier.js";
 import Purchase from "../models/Purchase.js";
 import StockMovement from "../models/StockMovement.js";
+// (list/get helpers below; recordPurchase is the transactional core)
 import {
   parseDecimal,
   decimalToString,
@@ -187,4 +188,45 @@ export async function recordPurchase(input, { userId } = {}) {
 
     return { purchase, supplier };
   });
+}
+
+/**
+ * Purchase history, filterable by supplier and date range, newest first.
+ * @param {object} opts - { supplierId, from (Date), to (Date), page, limit }
+ */
+export async function listPurchases({ supplierId, from, to, page = 1, limit = 20 } = {}) {
+  const query = {};
+  if (supplierId) query.supplierId = supplierId;
+  if (from || to) {
+    query.date = {};
+    if (from) query.date.$gte = from;
+    if (to) query.date.$lte = to;
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
+  const safePage = Math.max(Number(page) || 1, 1);
+
+  const [purchases, total] = await Promise.all([
+    Purchase.find(query)
+      .sort({ date: -1, createdAt: -1 })
+      .skip((safePage - 1) * safeLimit)
+      .limit(safeLimit)
+      .populate("supplierId", "name"),
+    Purchase.countDocuments(query),
+  ]);
+
+  return { purchases, total, page: safePage, limit: safeLimit, pages: Math.ceil(total / safeLimit) };
+}
+
+/** A single purchase with its lines' items populated. */
+export async function getPurchase(id) {
+  const purchase = await Purchase.findById(id)
+    .populate("supplierId", "name")
+    .populate("lines.itemId", "name sku baseUnit");
+  if (!purchase) {
+    const e = new Error("purchase not found");
+    e.status = 404;
+    throw e;
+  }
+  return purchase;
 }
