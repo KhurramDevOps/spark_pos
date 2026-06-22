@@ -49,6 +49,13 @@ const saleSchema = new Schema(
 
     note: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+
+    // Void audit (spec 004b). A voided sale is never deleted; its stock is put
+    // back and its khata effect undone, and it's marked here so it can't be voided
+    // twice and reads as voided in history.
+    voided: { type: Boolean, default: false },
+    voidedAt: { type: Date },
+    voidedBy: { type: Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
