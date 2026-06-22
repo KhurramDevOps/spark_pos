@@ -15,6 +15,52 @@ Format:
 
 ---
 
+## ADR-007 — Sales / POS: profit by cost snapshot, per-line discount, immutable sales
+- Date: 2026-06-22
+- Status: accepted
+- Context: Phase 3 (spec 004) records sales and makes profit real for the first time by
+  consuming avgCost. Several choices here are expensive to unwind once real sales exist
+  (profit history, khata balances), so they are pinned before building.
+- Decision:
+  - **Profit = (unitPrice − costAtTime) × qty, with `costAtTime` snapshotted per line.** The
+    sale reads `item.avgCost` INSIDE its transaction and stores it on the line; it is never
+    recomputed. Profit reporting is then summing stored numbers — no drift. A sale **does not
+    change avgCost** (selling doesn't change what remaining stock cost); it only decrements
+    stockQty and snapshots cost. Mirrors 003b's "return removes at current avg, avg unchanged".
+  - **Replay is unchanged for sales (verified, zero engine change).** The 003b replay/
+    recalculate-cost engine branches on `type === "purchase"` vs everything-else (qty-only), and
+    `sale` is already in the StockMovement enum (since spec 001). So `sale` movements move only
+    running quantity in replay and never perturb avgCost. Locked in by a regression test. NO
+    schema/enum migration.
+  - **Per-line discount only; no sale-level discount.** Bargaining is the per-line `unitPrice`
+    override; the server also snapshots `suggestedPrice` for honest discount reporting. A
+    sale-level discount would force arbitrary allocation across lines to compute per-line profit
+    — rejected. `Sale.discount` is NOT modeled.
+  - **suggestedPrice is server-derived:** `priceMode === "wholesale" ? (wholesalePrice ??
+    retailPrice) : retailPrice` — never suggest 0 in wholesale mode when wholesale is unset.
+    Client-sent suggested/cost values are ignored (snapshotted server-side, like purchases read
+    state in-txn).
+  - **Sales are immutable** (like Purchase). Corrections are via **004b** (customer return / sale
+    void) + re-enter — one coherent reversal model, deferred to keep the core sell flow
+    shippable. NOTE: a sale return/void only restores **stock** (qty-only reversing movement); it
+    must NOT reuse the purchase-reversal cost-exclusion replay, because a sale never changed avg.
+  - **Customer mirrors Supplier; CustomerPayment mirrors SupplierPayment.** Credit sale →
+    `customer.balance += total`; payment → `balance −= amount` (own txn); balance may go negative
+    (advance = shop owes the customer), surfaced not blocked. No forked patterns.
+  - **Negative-stock sell-through** governed by the existing `Settings.allowNegativeInventory`
+    (read in-txn via `getSingleton(session)`, default true → never blocks). When false, reject a
+    sale that would drive an item negative, checked on the **summed** qty across duplicate lines.
+  - **unitPrice ≥ 0 (0 allowed)**; below-cost (`unitPrice < costAtTime`) is **derived**, advisory,
+    never stored, never blocking. **Two `costAtTime` copies** (sale line + sale movement): the
+    line is the source of truth for profit; the movement is audit symmetry only.
+  - **Negative Stock view** (deferred from spec 001) is built in spec 004, since sales are what
+    create negative stock.
+- Consequences: profit is auditable and drift-free (summed snapshots). One reversal model lands
+  in 004b rather than two half-models now. Heavy reuse of the Supplier/payment/transaction
+  machinery keeps the new surface small (the genuinely new code is the Sale model + sale service
+  + the POS screen). Until 004b ships, a mis-keyed sale is only fixable by DB restore (same gap
+  003 had pre-003b) — mitigated by shipping 004b immediately after.
+
 ## ADR-006 — Purchase reversals & returns: avgCost repair by full-history replay
 - Date: 2026-06-22
 - Status: accepted
