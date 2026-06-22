@@ -8,10 +8,10 @@ const returnLineSchema = z.object({
   qty: positiveDecimalString,
 });
 
-// Returns ALWAYS link to a sale (§9.1). `customerId` is only needed for
+// Returns ALWAYS link to a sale (§9.1) — `saleId` comes from the route param
+// (POST /sales/:id/returns), not the body. `customerId` is only needed for
 // khata-credit (enforced in the service once the sale is loaded).
 export const createCustomerReturnSchema = z.object({
-  saleId: objectId,
   customerId: objectId.optional(),
   date: z.coerce.date().optional(),
   lines: z.array(returnLineSchema).min(1, "a return needs at least one line"),
