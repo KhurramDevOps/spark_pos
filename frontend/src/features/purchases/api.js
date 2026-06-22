@@ -21,4 +21,15 @@ export const createPurchase = (body) => apiClient.post("/purchases", body);
 
 export const fetchSuppliers = (active) =>
   apiClient.get(`/suppliers${active ? `?active=${active}` : ""}`);
+export const getSupplier = (id) => apiClient.get(`/suppliers/${id}`);
 export const createSupplier = (body) => apiClient.post("/suppliers", body);
+export const updateSupplier = (id, body) => apiClient.patch(`/suppliers/${id}`, body);
+export const setSupplierActive = (id, active) =>
+  apiClient.post(`/suppliers/${id}/${active ? "reactivate" : "deactivate"}`);
+
+// ---- Supplier payments ----------------------------------------------------
+
+export const fetchSupplierPayments = (id) => apiClient.get(`/suppliers/${id}/payments`);
+// body: { amount(rupees), date?, note? }
+export const recordSupplierPayment = (id, body) =>
+  apiClient.post(`/suppliers/${id}/payments`, body);

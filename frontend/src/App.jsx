@@ -1,11 +1,19 @@
 import { useState } from "react";
 import InventoryPage from "./pages/InventoryPage";
 import PurchasesPage from "./pages/PurchasesPage";
+import SuppliersPage from "./pages/SuppliersPage";
 
 const TABS = [
   { id: "inventory", label: "Inventory" },
   { id: "purchases", label: "Purchases" },
+  { id: "suppliers", label: "Suppliers" },
 ];
+
+const PAGES = {
+  inventory: InventoryPage,
+  purchases: PurchasesPage,
+  suppliers: SuppliersPage,
+};
 
 function App() {
   const [tab, setTab] = useState("inventory");
@@ -32,7 +40,10 @@ function App() {
           </nav>
         </div>
       </div>
-      {tab === "inventory" ? <InventoryPage /> : <PurchasesPage />}
+      {(() => {
+        const Page = PAGES[tab] ?? InventoryPage;
+        return <Page />;
+      })()}
     </div>
   );
 }

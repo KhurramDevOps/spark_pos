@@ -9,6 +9,14 @@ export function usePurchases(filters) {
   });
 }
 
+export function usePurchase(id) {
+  return useQuery({
+    queryKey: ["purchase", id],
+    queryFn: () => api.getPurchase(id),
+    enabled: Boolean(id),
+  });
+}
+
 export function useSuppliers(active) {
   return useQuery({
     queryKey: ["suppliers", active ?? "all"],
@@ -34,5 +42,56 @@ export function useCreateSupplier() {
   return useMutation({
     mutationFn: (body) => api.createSupplier(body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["suppliers"] }),
+  });
+}
+
+export function useSupplier(id) {
+  return useQuery({
+    queryKey: ["supplier", id],
+    queryFn: () => api.getSupplier(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useSupplierPayments(id) {
+  return useQuery({
+    queryKey: ["supplierPayments", id],
+    queryFn: () => api.fetchSupplierPayments(id),
+    enabled: Boolean(id),
+  });
+}
+
+export function useUpdateSupplier() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }) => api.updateSupplier(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier", id] });
+    },
+  });
+}
+
+export function useSetSupplierActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, active }) => api.setSupplierActive(id, active),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier", id] });
+    },
+  });
+}
+
+/** A payment reduces the supplier's balance owed (its own transaction). */
+export function useRecordPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }) => api.recordSupplierPayment(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier", id] });
+      qc.invalidateQueries({ queryKey: ["supplierPayments", id] });
+    },
   });
 }
