@@ -17,6 +17,15 @@ export function useCategories(active) {
   });
 }
 
+// Items with stockQty < 0. Keyed under ["items", ...] so an adjustment (which
+// invalidates ["items"]) refreshes the list once a count is corrected.
+export function useNegativeStockItems() {
+  return useQuery({
+    queryKey: ["items", "negative-stock"],
+    queryFn: () => api.fetchNegativeStockItems(),
+  });
+}
+
 /** Wrap a mutation so it invalidates items (and optionally categories) on success. */
 function useInvalidatingMutation(mutationFn, { categories = false } = {}) {
   const qc = useQueryClient();

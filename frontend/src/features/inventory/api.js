@@ -20,6 +20,8 @@ export const deactivateItem = (id) => apiClient.post(`/items/${id}/deactivate`, 
 export const reactivateItem = (id) => apiClient.post(`/items/${id}/reactivate`, {});
 // Owner-only: re-derive avgCost + stockQty from movement history (spec 003b repair).
 export const recalculateCost = (id) => apiClient.post(`/items/${id}/recalculate-cost`, {});
+// Items whose cached stock has gone negative (spec 004 Negative Stock view).
+export const fetchNegativeStockItems = () => apiClient.get("/items/negative-stock");
 
 // ---- Categories -----------------------------------------------------------
 
