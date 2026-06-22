@@ -52,10 +52,12 @@ function buildLedger(openingBalance, purchases, payments, returns) {
   ];
 
   // Oldest first to accumulate the running balance, then reverse for display.
+  // Order by posting time (createdAt) — the user-facing `date` can be date-only
+  // (midnight) and would otherwise sort a same-day payment before its purchase.
   events.sort((a, b) => {
-    const d = new Date(a.date) - new Date(b.date);
+    const d = new Date(a.createdAt) - new Date(b.createdAt);
     if (d !== 0) return d;
-    return new Date(a.createdAt) - new Date(b.createdAt);
+    return new Date(a.date) - new Date(b.date);
   });
 
   let running = Number(openingBalance);
