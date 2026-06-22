@@ -15,6 +15,55 @@ Format:
 
 ---
 
+## ADR-010 — Daily-close aggregation buckets by `createdAt` in Asia/Karachi, not by `date`
+- Date: 2026-06-23
+- Status: accepted
+- Context: Spec 005's daily close must put each cash flow in the right shop-day. The existing
+  `listSales`/`listPurchases` filter by the user-editable **`date`** field (a label, can be
+  back/future-dated); there is no timezone handling anywhere in the codebase today.
+- Decision:
+  - **Bucket by `createdAt` (immutable insertion instant), NOT the `date` label.** Cash moved
+    when the row was written, not when a user-edited label says. This is a DELIBERATE divergence
+    from the existing `date`-based list filters — written here so it is not mistaken for an
+    inconsistency to "fix."
+  - **"Day" = Asia/Karachi 00:00–23:59:59.999.** Pakistan is UTC+5 with **no DST (ever)**, so a
+    fixed constant `ASIA_KARACHI_OFFSET_MIN = 300` is exact — Karachi midnight = UTC 19:00 the
+    prior day. The aggregation computes the Karachi-day window as UTC instants and queries
+    `createdAt ∈ [start, end]`. **No timezone dependency** is added. (Comment: revisit only if
+    Pakistan ever adopts DST.)
+  - The aggregation service is **parameterized by `[start, end]`** so Phase 6 can reuse it for
+    week/month windows.
+- Consequences: correct shop-day bucketing independent of any edited date label, dependency-free.
+  The existing `date`-based list endpoints are left as-is (different purpose: browsing/filtering,
+  not cash accounting).
+
+## ADR-009 — Daily close: all payments are CURRENTLY cash (no method field yet); expenses stay separate from per-sale profit
+- Date: 2026-06-23
+- Status: accepted
+- Context: Spec 005's cash math sums "cash" customer/supplier payments. Verified against the
+  as-built models: `CustomerPayment` and `SupplierPayment` are `{ entityId, amount, date, note,
+  createdBy }` — **there is no `method`/`isCash` field**, and no UI to set one.
+- Decision:
+  - **Treat every `CustomerPayment` and `SupplierPayment` as cash in the daily-close math.** This
+    is true because the model has **no method field** — not because we've decided cash is the only
+    payment type forever. Every payment in the system today IS cash in practice.
+  - **EXTENSION POINT (future-me, read this):** when a non-cash payment path ships (its own
+    spec — e.g. bank transfer / cheque on a khata payment), it will add a `method` field to
+    `CustomerPayment`/`SupplierPayment`, and **the daily-close aggregation MUST then add
+    `method: 'cash'` filters** to the supplier- and customer-payment sums (lines E and B of spec
+    005 §6). Until that field exists, no filter is possible or needed.
+  - **Expenses stay separate from per-sale profit.** Per-sale gross profit (Σ (unitPrice −
+    costAtTime)×qty) is unchanged and NOT reduced by expenses. "Net for the day" = gross profit −
+    expenses is a daily-level DISPLAY-only derivation, stored nowhere — folding expenses into
+    `Sale.profit` would muddy the per-sale numbers kept honest since spec 004.
+  - **Carry-forward is physical, not computed:** next day's starting cash = this day's
+    `DayClose.actualCash` (what was physically counted that night). A retroactive void/return that
+    shifts a past day's *expected* cash does NOT change its `actualCash` — so the carry-forward
+    stays correct even when the close is flagged stale. Stale re-save updates the
+    expected/difference snapshot only.
+- Consequences: simple, currently-accurate cash math with a clearly-marked seam for non-cash
+  payments later. Daily net is a view, not a stored field; per-sale profit stays clean.
+
 ## ADR-008 — Sale void & customer returns: stock-only reversal, no replay
 - Date: 2026-06-23
 - Status: accepted

@@ -1,6 +1,6 @@
 # Spec: 005 — Expenses & daily close
 
-- **Status:** draft (pending review)
+- **Status:** in-progress (review complete; building models + aggregation + tests first)
 - **Phase:** Phase 5 — Expenses & daily close
 - **Author / date:** <you> / <fill in>
 - **Builds on:** every prior phase. Reads from immutable Sale (totals, costAtTime for profit),
@@ -150,11 +150,14 @@ or a 7pm sale will land on the wrong day in the close screen. Detailed in §6.
   `DayClose.date` unique.
 
 ## 6. Business rules
-- **"Today" is Asia/Karachi, by createdAt.** Same rule as everywhere else in the project —
-  daily-close aggregation buckets transactions by `createdAt` after converting to Asia/Karachi
-  timezone, NOT by any user-editable date label. A sale posted at 11:55pm shop-time on June 23
-  belongs to June 23's close, even if the server is UTC and the user-set date field is
-  different. Pin the timezone explicitly in a constant; do not let it default to server local.
+- **"Today" is Asia/Karachi, by createdAt (ADR-010).** The daily-close aggregation buckets
+  transactions by `createdAt` after converting to Asia/Karachi, NOT by any user-editable date
+  label. A sale posted at 11:55pm shop-time on June 23 belongs to June 23's close even if the
+  server is UTC. This **deliberately diverges** from the existing `listSales`/`listPurchases`
+  filters (which use the editable `date` field) — see ADR-010, written so it's not mistaken for
+  an inconsistency. Timezone is a fixed constant `ASIA_KARACHI_OFFSET_MIN = 300` (PKT = UTC+5,
+  no DST); the Karachi day window is computed as UTC instants. Aggregation is parameterized by
+  `[start, end]` (Phase 6 reuses it for week/month).
 
 - **"Day boundary"** is Asia/Karachi 00:00:00 to 23:59:59.999. The day starts at midnight, not
   at an arbitrary "shop open" time. (Most days the shop will be closed across the boundary
@@ -172,6 +175,11 @@ or a 7pm sale will land on the wrong day in the close screen. Detailed in §6.
     from then on.
   - Starting cash is **displayed** on the screen but **not directly editable for past days** —
     to change it, the owner edits the prior day's close (which warns about the cascade).
+  - **Un-closed-days edge:** carry-forward stays accurate only if every day with cash flow is
+    closed. If the owner skips closing a day that had flow, the next day's starting cash (= last
+    close) silently misses it. Do NOT auto-sum un-closed intermediate days (that would absorb
+    un-reviewed days). Instead **surface a hint** when un-closed days exist between the most-recent
+    close and the viewed day ("N days since last close — counts may not line up").
 
 - **The cash math (exact formula, what the screen displays):**
 
@@ -214,7 +222,11 @@ or a 7pm sale will land on the wrong day in the close screen. Detailed in §6.
   yesterday's cash sale changes yesterday's close, not today's. The close screen should be
   re-checked for the affected day after any retroactive void/return — and if yesterday's
   DayClose was already saved, the screen should flag that the snapshot is now stale and prompt
-  a re-save.
+  a re-save (ADR-009 option b: preserve the audit snapshot, owner re-saves).
+  - **Stale does NOT change carry-forward.** `actualCash` is what was physically counted that
+    night; a retroactive void shifting `expectedCashSnapshot` does NOT recompute `actualCash`, so
+    the next day's starting cash stays correct regardless of staleness. A stale re-save updates
+    `expectedCashSnapshot`/`differenceSnapshot` only — never `actualCash`.
 
 - **Profit & expense stay separate.** Two distinct lines on the screen:
   - `Gross profit today` = Σ (Sale.line.unitPrice − Sale.line.costAtTime) × qty for
@@ -290,27 +302,16 @@ or a 7pm sale will land on the wrong day in the close screen. Detailed in §6.
       save close).
 - [ ] No new test depends on a Mongo transaction (this spec doesn't use them).
 
-## 9. Open questions (resolve in review)
-1. **Expense categories — what's the v1 list?** Owner has confirmed `salary` and `electricity`
-   are the main two; `other` covers the rest with a free-form note. Is that enough for v1, or
-   should categories be a tiny separate collection (admin-editable) instead of an enum? Leaning:
-   enum for v1, promote to collection only if owner ends up needing many categories. Confirm.
-2. **Cash supplier payments — how does the existing SupplierPayment model represent "cash" vs.
-   non-cash?** Check the as-built model: is there a method/type field, or is everything stored
-   as cash by default in v1? If the latter, daily-close treats them all as cash; if there's
-   already a method field, daily-close filters on it. Verify in review against actual code.
-3. **Same question for CustomerPayment** — does the as-built distinguish cash receipts from
-   non-cash, or treat everything as cash? Verify.
-4. **What happens if the user enters an expense dated to a future date?** Block (date validation
-   in §7 says no future dates). Confirm this is the right default — could be relaxed for
-   "scheduled" expenses but those aren't a v1 concept.
-5. **Display: do we show a single combined close screen, or split daily-close (cash math) and
-   daily-summary (sales, profit, expenses) into two views?** Leaning: one screen, sections.
-   Confirm.
-6. **DayClose recompute on retroactive change:** if yesterday's DayClose was saved with
-   expectedCashSnapshot = Rs 8,200, and today a void retroactively changes yesterday's expected
-   to Rs 7,900, what's the UX? Options: (a) auto-recompute the snapshot silently — loses audit;
-   (b) flag stale and prompt re-save — preserves audit, owner-aware. Leaning: (b). Confirm.
+## 9. Decisions (resolved in review; see ADR-009 / ADR-010)
+1. **Expense categories:** enum `salary | electricity | other` for v1 (NO `rent` — owner-owned
+   shop, never paid). Promote to a collection later only if many categories are needed. ✅
+2. **Cash supplier payments:** the model has **no method field** → all SupplierPayments counted as
+   cash (ADR-009), with an explicit extension point for when a non-cash path ships. ✅
+3. **Cash customer payments:** same — no method field → all counted as cash (ADR-009). ✅
+4. **Future-dated expense:** BLOCK (no future dates, §7). Scheduled expenses aren't a v1 concept. ✅
+5. **Display:** single combined close screen with sections (cash math + profit/expense). ✅
+6. **Retroactive change → stale DayClose:** option (b) — flag stale + prompt re-save (preserves
+   the audit snapshot). Carry-forward `actualCash` is NOT recomputed on stale (ADR-009). ✅
 
 ## 10. Notes / decisions
 - This spec adds NO new correctness-critical machinery — no transactions, no replay, no avgCost
