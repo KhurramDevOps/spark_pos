@@ -1,6 +1,6 @@
 # Spec: 004b — Customer returns & sale void
 
-- **Status:** draft
+- **Status:** in-progress (review complete; building models + services + tests first)
 - **Phase:** Phase 3 — Sales / POS (recovery net; completes the sell side)
 - **Author / date:** <you> / <fill in>
 - **Builds on:** spec 004 (immutable Sale; costAtTime snapshot per line; sale = qty-only,
@@ -67,14 +67,21 @@ exclude it, not by deleting the row (audit).
 
 ## 5. Data model changes
 - **Sale** — add `voided` (bool, default false), `voidedAt`, `voidedBy`. Not deleted (audit).
-- **StockMovement** — voids/returns write type `reversal` (reuse the enum value already added
-  in 003b) with positive qty, costAtTime carried from the original line for audit symmetry only
-  (never feeds a recompute), refId = sale, createdBy.
-- **CustomerReturn** (new, mirrors SupplierReturn) — saleId (ref Sale, optional — decide if
-  standalone returns are allowed), customerId (required), date, lines [{itemId, qty, valueAtTime
-  (Decimal128, the refund/credit value per unit — typically the original sale's unitPrice)}],
-  total, refundMethod (enum: cash | khata-credit), note, createdBy, timestamps.
-- No change to Item or the cost engine. avgCost is untouched by anything in this spec.
+- **StockMovement** — POSITIVE qty (stock back in). **Sale void → type `reversal`**; **customer
+  return → type `return`** (mirrors 003b's reversal-vs-return distinction so they read apart in
+  history). `costAtTime` carried from the original line for audit symmetry only (never feeds a
+  recompute). `refId = sale._id`, `createdBy`. **`reversalRef` is left UNSET** — that field is
+  the 003b purchase-cost exclusion trigger (costService auto-excludes any `reversalRef`); it has
+  no meaning on the sale side and must not be set (ADR-008).
+- **CustomerReturn** (new, mirrors SupplierReturn structurally) — **saleId (ref Sale, REQUIRED**
+  — standalone returns not allowed, §9.1), customerId (**required only when refundMethod =
+  khata-credit**, §9.3), date, lines [{ itemId, qty (Decimal128 > 0), valueAtTime (Decimal128 =
+  the original sale line's unitPrice — what the customer paid, the refund/credit value per unit) }],
+  total (whole paisa = Σ qty·valueAtTime), refundMethod (enum: cash | khata-credit), note,
+  createdBy, timestamps.
+- No change to Item or the cost engine. **avgCost is untouched, and replay is NOT called** by
+  anything in this spec (the +q reversal/return movement and the original −q sale movement are
+  both qty-only and cancel, so `recalculate-cost` still reports no drift).
 
 ## 6. Business rules
 - **Stock only, no replay.** Voids/returns increase stockQty directly in the same transaction
@@ -93,9 +100,12 @@ exclude it, not by deleting the row (audit).
   record, no balance effect) but allow choosing khata-credit instead (e.g. "keep it as credit
   for next time" — common in shops). Confirm this flexibility is wanted.
 - **Cannot void an already-voided sale** (idempotency) — reject clearly.
-- **Return quantity** should not be assumed to exceed what was sold — validate against the
-  original sale's line if linked; if standalone returns are allowed, no such check is possible
-  (flag this in review).
+- **Return quantity cap (CUMULATIVE, §9.4):** a return's qty for an item, PLUS all prior
+  returns against the same `saleId` for that item, must not exceed the qty sold on that sale
+  line. (Per-return-only would let the full qty be returned repeatedly.) One query by `saleId`.
+- **Refund method (§9.3):** `refundMethod = cash` → a record only, no balance effect, no
+  customer needed. `refundMethod = khata-credit` → REQUIRES a customerId, and
+  `customer.balance -= total` (reduces what they owe, or goes negative = store credit; surfaced).
 - **Voids/returns are themselves immutable and audited** — createdBy + timestamp, visible in
   history, never themselves un-done by deletion (to undo a void, re-enter the sale).
 - **Stock after a return is just addition** — no negative-stock interaction to worry about here
@@ -123,20 +133,15 @@ exclude it, not by deleting the row (audit).
 - [ ] Tests cover: void-restores-stock, void-reduces-khata (incl. advance/store-credit case),
       return math (stock + refund/credit), atomicity, idempotency, avgCost-untouched regression.
 
-## 9. Open questions for the owner / review
-1. **Standalone returns** (no linked original sale) — allow, for "customer says they bought it
-   here, no record handy"? Or always require linking to the original sale? (Lean: require
-   linking for correctness/audit; a standalone path invites errors. Confirm.)
-2. **Cash-refund acknowledgment** — is voiding/returning enough of a record, or does the owner
-   want an explicit "cash given back: ₹X" step for their own bookkeeping? (Lean: the
-   record itself is enough; no separate step.)
-3. **Refund method choice on a cash sale's return** — allow choosing khata-credit instead of
-   cash (common in shops: "keep it as credit")? Confirm this flexibility is wanted, and that it
-   requires a customer even though the original sale may have had none.
-4. **Cap return qty at what was sold** (if linked) — enforce, or allow over-returning (e.g. data
-   entry differences)? (Lean: enforce the cap when linked, for sanity.)
-5. **Void UI location** — in the single-sale detail view (mirrors the Purchase detail's reverse
-   button), confirm.
+## 9. Decisions (resolved in review; see ADR-008)
+1. **Standalone returns:** NOT allowed — every return REQUIRES a linked `saleId`. ✅
+2. **Cash-refund acknowledgment:** the void/return record itself is enough; no separate step. ✅
+3. **Refund method:** a cash sale's return may be refunded as **cash (default) or khata-credit**
+   (owner's choice). khata-credit requires a customer (pick/create one if the cash sale had none)
+   and moves `customer.balance`. ✅
+4. **Cap return qty:** ENFORCE, cumulatively across prior returns on the same sale line. ✅
+5. **Void UI:** in the single-sale detail view (mirrors PurchaseDetail's reverse button); return
+   form launched from the same sale detail (linked, pre-filled). ✅
 
 ## 10. Notes / decisions
 - This is the last piece of Phase 3's safety net. After this ships, the sell side (like the

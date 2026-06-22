@@ -15,6 +15,41 @@ Format:
 
 ---
 
+## ADR-008 — Sale void & customer returns: stock-only reversal, no replay
+- Date: 2026-06-23
+- Status: accepted
+- Context: Spec 004b adds the sell-side recovery net (void a sale, record a customer return),
+  mirroring 003b's purchase-side reversals. The central question was whether sale reversal needs
+  003b's avgCost replay engine.
+- Decision:
+  - **No replay — sale void/return is stock-only.** Verified against the code: `saleService`
+    never writes `item.avgCost` (it only reads it to snapshot `costAtTime`), and
+    `recomputeItemCostByReplay` recomputes avg ONLY at `type === "purchase"` movements (every
+    other type is qty-only). So undoing a sale is just: add stock back + undo the cash/khata
+    effect. The 003b replay/exclusion machinery is deliberately NOT reused.
+  - **`reversalRef` left UNSET on sale-side reversing movements.** That field is replay's
+    purchase-cost exclusion trigger; it has no meaning for sales. Sale void uses `type:"reversal"`,
+    customer return uses `type:"return"` (both POSITIVE qty, mirroring 003b's reversal-vs-return
+    distinction), each with `refId = sale._id` and `reversalRef` unset. The original −q sale
+    movement and the new +q movement are both qty-only and cancel, so `recalculate-cost` still
+    reports no drift.
+  - **Returns require a linked sale** (`CustomerReturn.saleId` required) — gives the qty cap, the
+    original `unitPrice` as refund value, and a clean audit trail; standalone returns rejected.
+  - **Refund method = cash | khata-credit.** cash = record only, no balance/customer needed;
+    khata-credit REQUIRES a customer and does `customer.balance -= total` (may go negative = store
+    credit, surfaced). `customerId` is conditionally required (iff khata-credit).
+  - **Cumulative return-qty cap:** this return's qty + all prior returns on the same sale line
+    must not exceed the sold qty.
+  - **Void/return immutable + audited:** `Sale.voided/voidedAt/voidedBy`; rows never deleted;
+    voiding an already-voided sale rejected. Profit reversal is just marking voided + storing the
+    return (saleId + per-line qty) so a future Phase-6 report nets it out — no profit math now.
+  - **CustomerReturn mirrors SupplierReturn structurally (~80%), NOT its replay:** same model/
+    validation/service skeleton/UI pattern; diverges on positive qty (stock IN), no replay,
+    refund-method branch, and the cap query.
+- Consequences: a small, fast, correct sell-side reversal with one transaction per op and the
+  same balance/immutability conventions as every prior spec. After this ships, the sell side is
+  recoverable in-app like the purchase side became after 003b.
+
 ## ADR-007 — Sales / POS: profit by cost snapshot, per-line discount, immutable sales
 - Date: 2026-06-22
 - Status: accepted
