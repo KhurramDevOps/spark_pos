@@ -155,3 +155,4 @@ exclude it, not by deleting the row (audit).
 - Build order: model changes + void service + return service with the full test list FIRST,
   PAUSE for green, then routes, then UI (void button in sale detail; return form in customer
   detail or sale detail — decide placement in review).
+  

@@ -225,16 +225,18 @@ All reports computed from real recorded transactions — never hand-entered tota
 **Phase 0 — Foundations (spec + skeleton)**
 Repo, CLAUDE.md, this plan, DB schema, auth, app shell, CI, one passing test. No features yet.
 
-**Phase 1 — Inventory core**
+**Phase 1 — Inventory core** — ✅ **SHIPPED** (specs 001, 002)
 Categories, items (with units), stock view, search, add/edit, **bulk CSV import**, manual
 stock adjustments. *This is the foundation everything sits on.*
 
-**Phase 2 — Purchases & cost**
-Suppliers, purchase entry → updates stock + weighted-avg cost. Now cost data exists.
+**Phase 2 — Purchases & cost** — ✅ **SHIPPED** (specs 003, 003b)
+Suppliers, purchase entry → updates stock + weighted-avg cost; purchase reversals + supplier
+returns with replay-based avgCost repair (003b). Now cost data exists.
 
-**Phase 3 — Sales / POS core**
-Sale screen, line items, units, price override/discount, cash vs credit, COGS recorded per
-sale, returns. *This is the heart of the app.*
+**Phase 3 — Sales / POS core** — ✅ **SHIPPED** (specs 004, 004b)
+Sale screen, line items, units, per-line price override, cash vs credit (khata), COGS + profit
+recorded per sale, customer ledgers, negative-stock view; sale void + customer returns (004b,
+stock-only, no replay). *This is the heart of the app.*
 
 **Phase 4 — Ledgers**
 Customer & supplier balances, part-payments, statements.
