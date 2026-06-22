@@ -2,6 +2,7 @@ import {
   createSupplier,
   listSuppliers,
   getSupplier,
+  updateSupplier,
   setSupplierActive,
   recordSupplierPayment,
   listSupplierPayments,
@@ -32,6 +33,10 @@ export const list = wrap(async (req, res) => {
 
 export const getOne = wrap(async (req, res) => {
   res.json(await getSupplier(req.params.id));
+});
+
+export const update = wrap(async (req, res) => {
+  res.json(await updateSupplier(req.params.id, req.validated));
 });
 
 export const deactivate = wrap(async (req, res) => {

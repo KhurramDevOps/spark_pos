@@ -53,6 +53,21 @@ export async function getSupplier(id) {
   return supplier;
 }
 
+/**
+ * Edit a supplier's name/phone. openingBalance and balance are NOT editable here:
+ * openingBalance is an immutable starting point and balance is a cached running
+ * value moved only by purchases/payments in-transaction (spec 003 §5).
+ * @param {object} patch - { name?, phone? (string|null) }
+ */
+export async function updateSupplier(id, patch) {
+  const supplier = await Supplier.findById(id);
+  if (!supplier) throw httpError("supplier not found", 404);
+  if (patch.name !== undefined) supplier.name = patch.name;
+  if (patch.phone !== undefined) supplier.phone = patch.phone ?? undefined;
+  await supplier.save();
+  return supplier;
+}
+
 /** Deactivate/reactivate a supplier (soft; never deletes). */
 export async function setSupplierActive(id, isActive) {
   const supplier = await Supplier.findById(id);
