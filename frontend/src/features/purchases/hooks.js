@@ -45,6 +45,20 @@ export function useCreateSupplier() {
   });
 }
 
+/** Reversing a purchase changes stock + avgCost (items) and supplier balances. */
+export function useReversePurchase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => api.reversePurchase(id),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["purchases"] });
+      qc.invalidateQueries({ queryKey: ["purchase", id] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+    },
+  });
+}
+
 export function useSupplier(id) {
   return useQuery({
     queryKey: ["supplier", id],

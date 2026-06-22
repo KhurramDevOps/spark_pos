@@ -16,6 +16,8 @@ export function fetchPurchases({ supplierId, from, to, page, limit } = {}) {
 export const getPurchase = (id) => apiClient.get(`/purchases/${id}`);
 // body: { date?, supplierId?, paymentType, lines:[{ itemId, qty, unitCost(rupees) }], note? }
 export const createPurchase = (body) => apiClient.post("/purchases", body);
+// Undo a posted purchase: removes stock, restores payable, replays avgCost (spec 003b).
+export const reversePurchase = (id) => apiClient.post(`/purchases/${id}/reverse`);
 
 // ---- Suppliers ------------------------------------------------------------
 

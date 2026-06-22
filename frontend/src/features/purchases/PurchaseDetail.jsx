@@ -1,6 +1,7 @@
-import { Modal, Badge, Button } from "../../components/ui";
+import { useState } from "react";
+import { Modal, Badge, Button, ErrorText } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
-import { usePurchase } from "./hooks";
+import { usePurchase, useReversePurchase } from "./hooks";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-PK", {
@@ -10,20 +11,67 @@ function formatDate(d) {
   });
 }
 
-/** Read-only view of one posted purchase and its lines. */
+/** Read-only view of one posted purchase and its lines, with a reverse action. */
 export default function PurchaseDetail({ purchaseId, onClose }) {
   const { data: p, isLoading, error } = usePurchase(purchaseId);
+  const reverseMut = useReversePurchase();
+  const [confirming, setConfirming] = useState(false);
+
+  const reversed = p?.reversed;
+
+  async function doReverse() {
+    try {
+      await reverseMut.mutateAsync(purchaseId);
+      setConfirming(false);
+    } catch {
+      /* error shown inline below */
+    }
+  }
+
+  const footer = !p ? (
+    <Button onClick={onClose}>Close</Button>
+  ) : confirming ? (
+    <>
+      <Button variant="secondary" type="button" onClick={() => setConfirming(false)} disabled={reverseMut.isPending}>
+        Keep it
+      </Button>
+      <Button variant="danger" type="button" onClick={doReverse} disabled={reverseMut.isPending}>
+        {reverseMut.isPending ? "Reversing…" : "Yes, reverse"}
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button variant="secondary" type="button" onClick={onClose}>Close</Button>
+      <Button variant="danger" type="button" onClick={() => setConfirming(true)} disabled={reversed}>
+        {reversed ? "Reversed" : "Reverse"}
+      </Button>
+    </>
+  );
 
   return (
-    <Modal
-      title="Purchase"
-      onClose={onClose}
-      footer={<Button onClick={onClose}>Close</Button>}
-    >
+    <Modal title="Purchase" onClose={onClose} footer={footer}>
       {isLoading && <p className="text-sm text-gray-500">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error.message}</p>}
       {p && (
         <div className="space-y-4">
+          {reversed && (
+            <div className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-600">
+              <Badge tone="gray">Reversed</Badge>
+              <span>
+                This purchase was reversed{p.reversedAt ? ` on ${formatDate(p.reversedAt)}` : ""} — its stock,
+                payable, and average cost were undone.
+              </span>
+            </div>
+          )}
+          {confirming && !reversed && (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              Reverse this purchase? Stock will be taken back out, any supplier payable restored, and
+              the item's average cost recomputed from history. This can't be undone (re-enter the
+              purchase if needed).
+            </div>
+          )}
+          {reverseMut.isError && <ErrorText>{reverseMut.error.message}</ErrorText>}
+
           <div className="grid grid-cols-2 gap-y-2 text-sm">
             <span className="text-gray-500">Date</span>
             <span className="text-right text-gray-900">{formatDate(p.date)}</span>

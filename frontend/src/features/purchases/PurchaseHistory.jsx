@@ -123,13 +123,20 @@ export default function PurchaseHistory() {
                   <td className="px-4 py-2.5 text-gray-900">{formatDate(p.date)}</td>
                   <td className="px-4 py-2.5 text-gray-700">{p.supplierId?.name ?? "—"}</td>
                   <td className="px-4 py-2.5">
-                    {p.paymentType === "credit" ? (
-                      <Badge tone="amber">Credit</Badge>
-                    ) : (
-                      <Badge tone="green">Paid</Badge>
-                    )}
+                    <span className="inline-flex items-center gap-1.5">
+                      {p.paymentType === "credit" ? (
+                        <Badge tone="amber">Credit</Badge>
+                      ) : (
+                        <Badge tone="green">Paid</Badge>
+                      )}
+                      {p.reversed && <Badge tone="gray">Reversed</Badge>}
+                    </span>
                   </td>
-                  <td className="px-4 py-2.5 text-right font-medium tabular-nums text-gray-900">
+                  <td
+                    className={`px-4 py-2.5 text-right font-medium tabular-nums ${
+                      p.reversed ? "text-gray-400 line-through" : "text-gray-900"
+                    }`}
+                  >
                     {formatPaisa(decimalText(p.total))}
                   </td>
                 </tr>
