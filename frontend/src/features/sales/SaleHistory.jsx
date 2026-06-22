@@ -127,6 +127,11 @@ export default function SaleHistory() {
                       <span className="inline-flex items-center gap-1.5">
                         {s.paymentType === "credit" ? <Badge tone="amber">Credit</Badge> : <Badge tone="green">Cash</Badge>}
                         {s.voided && <Badge tone="gray">Voided</Badge>}
+                        {!s.voided && s.returnCount > 0 && (
+                          <span className="text-xs font-medium text-gray-500">
+                            ↩ Returned {formatPaisa(decimalText(s.returnedTotal))}
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${s.voided ? "text-gray-400 line-through" : "text-gray-900"}`}>

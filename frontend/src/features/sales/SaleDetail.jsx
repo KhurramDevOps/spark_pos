@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Modal, Badge, Button, ErrorText } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
-import { useSale, useVoidSale } from "./hooks";
+import { useSale, useVoidSale, useSaleReturns } from "./hooks";
 import SaleReturnForm from "./SaleReturnForm";
 
 function formatDate(d) {
@@ -12,11 +12,13 @@ const rsFromPaisa = (paisa) => formatPaisa(paisa);
 /** View of one posted sale: per-line price/cost/profit, with void + return actions. */
 export default function SaleDetail({ saleId, onClose }) {
   const { data: s, isLoading, error } = useSale(saleId);
+  const { data: returns = [] } = useSaleReturns(saleId);
   const voidMut = useVoidSale();
   const [confirming, setConfirming] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
 
   const voided = s?.voided;
+  const hasReturns = returns.length > 0;
 
   async function doVoid() {
     try {
@@ -45,7 +47,13 @@ export default function SaleDetail({ saleId, onClose }) {
     <>
       <Button variant="secondary" type="button" onClick={onClose}>Close</Button>
       <Button variant="secondary" type="button" onClick={() => setShowReturn(true)} disabled={voided}>Record return</Button>
-      <Button variant="danger" type="button" onClick={() => setConfirming(true)} disabled={voided}>
+      <Button
+        variant="danger"
+        type="button"
+        onClick={() => setConfirming(true)}
+        disabled={voided || hasReturns}
+        title={hasReturns && !voided ? "Reverse the returns first to void this sale" : undefined}
+      >
         {voided ? "Voided" : "Void"}
       </Button>
     </>
@@ -66,6 +74,11 @@ export default function SaleDetail({ saleId, onClose }) {
           {confirming && !voided && (
             <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
               Void this sale? Stock goes back and any credit khata is reversed. This can't be undone (re-enter the sale if needed).
+            </div>
+          )}
+          {hasReturns && !voided && (
+            <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              This sale has returns against it — it can't be voided. Reverse the returns first if you really need to void it.
             </div>
           )}
           {voidMut.isError && <ErrorText>{voidMut.error.message}</ErrorText>}
@@ -140,6 +153,44 @@ export default function SaleDetail({ saleId, onClose }) {
               </tfoot>
             </table>
           </div>
+
+          {hasReturns && (
+            <div>
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+                Returns against this sale
+              </div>
+              <div className="overflow-hidden rounded-md border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                    <tr>
+                      <th className="px-3 py-2 font-medium">Date</th>
+                      <th className="px-3 py-2 font-medium">Items returned</th>
+                      <th className="px-3 py-2 font-medium">Refund</th>
+                      <th className="px-3 py-2 text-right font-medium">Refunded</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {returns.map((r) => (
+                      <tr key={r._id}>
+                        <td className="px-3 py-2 text-gray-700">{formatDate(r.date)}</td>
+                        <td className="px-3 py-2 text-gray-900">
+                          {r.lines.map((l) => `${l.itemId?.name ?? "—"} ×${decimalText(l.qty)}`).join(", ")}
+                        </td>
+                        <td className="px-3 py-2">
+                          {r.refundMethod === "khata-credit"
+                            ? <Badge tone="amber">khata credit</Badge>
+                            : <Badge tone="green">cash</Badge>}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-900">
+                          {formatPaisa(decimalText(r.total))}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

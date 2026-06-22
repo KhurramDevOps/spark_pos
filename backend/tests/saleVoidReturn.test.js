@@ -13,7 +13,7 @@ import Settings from "../src/models/Settings.js";
 import CustomerReturn from "../src/models/CustomerReturn.js";
 import { createItem } from "../src/services/itemService.js";
 import { recordPurchase } from "../src/services/purchaseService.js";
-import { recordSale } from "../src/services/saleService.js";
+import { recordSale, listSales } from "../src/services/saleService.js";
 import { voidSale, recordCustomerReturn } from "../src/services/saleReversalService.js";
 import { recalculateItemCost } from "../src/services/costService.js";
 import { decimalToString } from "../src/lib/decimal.js";
@@ -235,6 +235,45 @@ test("avgCost untouched + recalculate-cost reports NO drift after void and after
   assert.equal(report.changed, false, "no drift after return");
   assert.equal(report.after.avgCost, "10000");
   assert.equal(report.after.stockQty, "80");
+});
+
+test("voiding a sale that has returns against it is blocked (double-count guard)", async () => {
+  const item = await newItem();
+  await stockUp(item, "100", "10000");
+  const { sale } = await recordSale(
+    { paymentType: "cash", priceMode: "retail", lines: [{ itemId: item._id, qty: "10", unitPrice: "15000" }] },
+    { userId }
+  );
+  await recordCustomerReturn({ saleId: sale._id, lines: [{ itemId: item._id, qty: "3" }], refundMethod: "cash" }, { userId });
+  await assert.rejects(() => voidSale(sale._id, { userId }), /reverse the returns first/);
+  // sale not voided, stock unchanged (still 93 = 90 sold + 3 returned)
+  assert.equal((await Sale.findById(sale._id)).voided, false);
+  assert.equal(decimalToString((await fresh(item._id)).stockQty), "93");
+});
+
+test("listSales annotates returnedTotal + returnCount without changing sale.total; isolated per sale", async () => {
+  const item = await newItem();
+  await stockUp(item, "100", "10000");
+  const { sale: withReturns } = await recordSale(
+    { paymentType: "cash", priceMode: "retail", lines: [{ itemId: item._id, qty: "10", unitPrice: "15000" }] },
+    { userId }
+  );
+  const { sale: clean } = await recordSale(
+    { paymentType: "cash", priceMode: "retail", lines: [{ itemId: item._id, qty: "2", unitPrice: "15000" }] },
+    { userId }
+  );
+  // two partial returns against the first sale: 3 + 2 = 5 units @ 15000 = 75000
+  await recordCustomerReturn({ saleId: withReturns._id, lines: [{ itemId: item._id, qty: "3" }], refundMethod: "cash" }, { userId });
+  await recordCustomerReturn({ saleId: withReturns._id, lines: [{ itemId: item._id, qty: "2" }], refundMethod: "cash" }, { userId });
+
+  const { sales } = await listSales({});
+  const a = sales.find((s) => String(s._id) === String(withReturns._id));
+  const b = sales.find((s) => String(s._id) === String(clean._id));
+  assert.equal(a.returnCount, 2);
+  assert.equal(decimalToString(a.returnedTotal), "75000");
+  assert.equal(decimalToString(a.total), "150000"); // immutable — unchanged
+  assert.equal(b.returnCount, 0); // returns don't leak across sales
+  assert.equal(b.returnedTotal, null);
 });
 
 test("void is one transaction — a mid-operation failure persists nothing", async () => {

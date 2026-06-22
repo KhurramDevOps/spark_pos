@@ -56,6 +56,18 @@ export async function voidSale(saleId, { userId } = {}) {
     if (!sale) throw httpError("sale not found", 404);
     if (sale.voided) throw httpError("sale is already voided", 400);
 
+    // Voiding a partially-returned sale would restore the FULL original stock while
+    // the returned units' stock was already added back — a silent double-count
+    // (recalculate-cost can't catch a qty bug). Block it; the owner must reverse the
+    // returns first. Same precondition pattern as the no-double-void guard (ADR-008).
+    const returnCount = await CustomerReturn.countDocuments({ saleId: sale._id }).session(session);
+    if (returnCount > 0) {
+      throw httpError(
+        "this sale has returns recorded against it — reverse the returns first to void it",
+        400
+      );
+    }
+
     // Reversing rows: positive qty back in, type "reversal", costAtTime carried
     // for audit only (never recomputes avg), reversalRef intentionally UNSET.
     await StockMovement.create(
@@ -109,7 +121,9 @@ export async function voidSale(saleId, { userId } = {}) {
 
 /** Returns recorded against a sale (for the cumulative qty cap + history). */
 export async function listCustomerReturnsForSale(saleId) {
-  return CustomerReturn.find({ saleId }).sort({ date: -1, createdAt: -1 });
+  return CustomerReturn.find({ saleId })
+    .sort({ date: -1, createdAt: -1 })
+    .populate("lines.itemId", "name sku baseUnit");
 }
 
 /**

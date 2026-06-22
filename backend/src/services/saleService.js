@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Item from "../models/Item.js";
 import Customer from "../models/Customer.js";
 import Sale from "../models/Sale.js";
+import CustomerReturn from "../models/CustomerReturn.js";
 import StockMovement from "../models/StockMovement.js";
 import Settings from "../models/Settings.js";
 import {
@@ -230,11 +231,27 @@ export async function listSales({ customerId, from, to, paymentType, page = 1, l
       .sort({ date: -1, createdAt: -1 })
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
-      .populate("customerId", "name"),
+      .populate("customerId", "name")
+      .lean(),
     Sale.countDocuments(query),
   ]);
 
-  return { sales, total, page: safePage, limit: safeLimit, pages: Math.ceil(total / safeLimit) };
+  // Annotate each sale with its returns (one bounded query for the page) so the
+  // history list can flag returned sales WITHOUT touching the immutable total.
+  const ids = sales.map((s) => s._id);
+  const agg = ids.length
+    ? await CustomerReturn.aggregate([
+        { $match: { saleId: { $in: ids } } },
+        { $group: { _id: "$saleId", returnedTotal: { $sum: "$total" }, returnCount: { $sum: 1 } } },
+      ])
+    : [];
+  const byId = new Map(agg.map((a) => [String(a._id), a]));
+  const annotated = sales.map((s) => {
+    const r = byId.get(String(s._id));
+    return { ...s, returnedTotal: r ? r.returnedTotal : null, returnCount: r ? r.returnCount : 0 };
+  });
+
+  return { sales: annotated, total, page: safePage, limit: safeLimit, pages: Math.ceil(total / safeLimit) };
 }
 
 /** A single sale with its lines' items and the customer populated. */
