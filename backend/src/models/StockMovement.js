@@ -2,7 +2,10 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const MOVEMENT_TYPES = ["purchase", "sale", "return", "adjustment"];
+// "reversal" is distinct from "return" so a purchase-reversal (undo a whole
+// posted purchase) is readable in history separately from a supplier-return
+// (send some stock back). Both use negative qty. See ADR-006.
+const MOVEMENT_TYPES = ["purchase", "sale", "return", "adjustment", "reversal"];
 
 const stockMovementSchema = new Schema(
   {
@@ -25,6 +28,11 @@ const stockMovementSchema = new Schema(
     // ref, so it is not auto-populated. Optional; null for adjustments.
     refId: { type: Schema.Types.ObjectId },
 
+    // On a reversing row, points at the Purchase being reversed so the cost
+    // replay can drop the original purchase's rows AND their reversing pair
+    // together ("exclude, don't subtract" — ADR-006 / spec 003b §6).
+    reversalRef: { type: Schema.Types.ObjectId },
+
     // Unit cost captured at movement time (used by purchases/COGS later).
     costAtTime: { type: Schema.Types.Decimal128 },
 
@@ -35,6 +43,10 @@ const stockMovementSchema = new Schema(
   },
   { timestamps: true }
 );
+
+// The exact key the avgCost replay reads by: an item's movements in posting
+// order (createdAt, then _id as tiebreak for same-millisecond bulk inserts).
+stockMovementSchema.index({ itemId: 1, createdAt: 1, _id: 1 });
 
 // A note is mandatory for manual adjustments (the reason for the correction).
 stockMovementSchema.pre("validate", function () {

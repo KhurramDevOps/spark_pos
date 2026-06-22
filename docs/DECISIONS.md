@@ -15,6 +15,53 @@ Format:
 
 ---
 
+## ADR-006 — Purchase reversals & returns: avgCost repair by full-history replay
+- Date: 2026-06-22
+- Status: accepted
+- Context: Spec 003b adds purchase reversal and supplier returns. Both must correct the cached
+  aggregates (`stockQty`, `avgCost`, `supplier.balance`), not just delete rows. ADR-005 already
+  established that avgCost is path-dependent and cannot be losslessly un-averaged, naming
+  replay-from-`costAtTime` as the true repair path. This ADR fixes the exact replay semantics —
+  an early spec draft got them wrong ("walk purchase + return movements only"), which would
+  miscompute avgCost the moment any non-purchase movement (opening stock, adjustment, sale) sits
+  between purchases.
+- Decision:
+  - **Replay walks ALL movement types in posting order; recomputes the average ONLY at
+    `purchase` events.** Maintain a running `(stockQty, avgCost)` from `(0,0)`; at a `purchase`
+    movement apply the spec 003 §6 floored-weighted-average (`applyPurchaseToCost`); at every
+    other type (`adjustment`/opening, `sale`, `return`, `reversal`) apply the signed qty to
+    running stock and leave avgCost unchanged. Rationale: the incremental engine computed each
+    purchase's average from the *live* stockQty, which already reflects opening/adjustments/sales
+    (the canonical 200@₹0 opening is an `adjustment`; `100@₹10 → adjust −60 → 100@₹20` = ₹17.14,
+    not the purchase-only ₹15.00).
+  - **Ordering key = `(createdAt asc, _id asc)`, never `purchase.date`.** `date` is a label
+    (ADR-005); `_id` is the tiebreak for same-`createdAt` rows (e.g. two same-item lines of one
+    purchase written in one ordered bulk insert). `StockMovement` has no `date` field, so replay
+    structurally cannot order by the purchase label.
+  - **Reversal = exclude, don't subtract.** To reverse purchase `P`, replay each affected item
+    excluding every movement with `refId === P._id` OR `reversalRef === P._id` (the original rows
+    and their reversing pair cancel and are both dropped), and recompute from survivors. Never
+    feed a negative qty into the average formula.
+  - **Returns do not change avgCost at return time.** Under weighted-average, returned units
+    leave at the current average; only running qty drops (future-correct via replay). The
+    `return` movement stores `costAtTime = current avgCost` for valuation symmetry.
+  - **One avgCost code path:** the replay service reuses `applyPurchaseToCost` verbatim (scale 10,
+    half-even). No second formula.
+  - **costAtTime guard:** replay throws if a consumed `purchase` movement lacks a non-negative
+    `costAtTime` (corruption surfaced, never treated as 0).
+  - **Drift detector:** replay returns a recomputed `stockQty`; callers/repair-tool compare it to
+    the cached value.
+  - **Shapes:** distinct **`reversal`** StockMovement type (separate from `return`); new
+    `StockMovement.reversalRef`; compound index `{ itemId:1, createdAt:1, _id:1 }`; separate
+    **`SupplierReturn`** collection; already-paid reversal/return drives `supplier.balance`
+    negative ("advance / refund due") + surfaced; returns may drive stock negative (allowed +
+    surfaced); replay exposed as an owner-only "recalculate cost" repair tool.
+- Consequences: One reusable, tested replay engine underpins reverse, return, and repair — no
+  divergent cost math. Replay cost is O(movements for the affected item), bounded by the new
+  index; fine for this shop's volume. Append-only ledger stays honest (nothing deleted; reversed
+  rows retained and filtered). The "walk all types" rule is mandatory for correctness once sales
+  ship in Phase 3.
+
 ## ADR-005 — Purchases & weighted-average cost: precision, immutability, paisa rules
 - Date: 2026-06-22
 - Status: accepted
