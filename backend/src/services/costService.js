@@ -1,6 +1,8 @@
+import mongoose from "mongoose";
+import Item from "../models/Item.js";
 import StockMovement from "../models/StockMovement.js";
 import { applyPurchaseToCost } from "./purchaseService.js";
-import { add, decimalToString, isNegative } from "../lib/decimal.js";
+import { add, decimalToString, toDecimal128, isNegative } from "../lib/decimal.js";
 
 /**
  * Recompute an item's weighted-average cost AND a verified stock quantity by
@@ -80,4 +82,45 @@ export async function recomputeItemCostByReplay(itemId, { session, excludeRefIds
   }
 
   return { avgCost: runAvg, stockQty: runQty };
+}
+
+/**
+ * Owner-only repair tool (spec 003b §9.6): re-derive an item's avgCost + stockQty
+ * from its full movement history and write the corrected values, returning a drift
+ * report. A general integrity valve — same replay engine, no second cost path.
+ *
+ * @param {string} itemId
+ * @param {object} ctx - { userId } (audit; required)
+ * @returns {Promise<{ itemId, before, after, changed: boolean, item: object }>}
+ */
+export async function recalculateItemCost(itemId, { userId } = {}) {
+  if (!userId) throw new Error("userId is required (audit)");
+
+  const session = await mongoose.startSession();
+  try {
+    let result;
+    await session.withTransaction(async () => {
+      const item = await Item.findById(itemId).session(session);
+      if (!item) {
+        const e = new Error("item not found");
+        e.status = 404;
+        throw e;
+      }
+
+      const before = { avgCost: decimalToString(item.avgCost), stockQty: decimalToString(item.stockQty) };
+      const after = await recomputeItemCostByReplay(item._id, { session });
+      const changed = after.avgCost !== before.avgCost || after.stockQty !== before.stockQty;
+
+      if (changed) {
+        item.avgCost = toDecimal128(after.avgCost);
+        item.stockQty = toDecimal128(after.stockQty);
+        await item.save({ session });
+      }
+
+      result = { itemId: String(item._id), before, after, changed, item };
+    });
+    return result;
+  } finally {
+    await session.endSession();
+  }
 }

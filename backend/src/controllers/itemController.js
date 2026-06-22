@@ -5,10 +5,16 @@ import {
   adjustStock,
   listItems,
 } from "../services/itemService.js";
+import { recalculateItemCost } from "../services/costService.js";
 import Item from "../models/Item.js";
 
 /** Wrap an async handler so thrown/rejected errors reach the error middleware. */
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+export const recalculateCost = wrap(async (req, res) => {
+  const result = await recalculateItemCost(req.params.id, { userId: req.userId });
+  res.json(result);
+});
 
 export const list = wrap(async (req, res) => {
   const { search, categoryId, active, page, limit } = req.query;
