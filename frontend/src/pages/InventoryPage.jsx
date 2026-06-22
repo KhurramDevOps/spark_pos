@@ -129,6 +129,7 @@ export default function InventoryPage() {
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Category</th>
               <th className="px-4 py-2 font-medium text-right">Stock</th>
+              <th className="px-4 py-2 font-medium text-right">Avg cost</th>
               <th className="px-4 py-2 font-medium text-right">Retail</th>
               <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium text-right">Actions</th>
@@ -136,13 +137,13 @@ export default function InventoryPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             )}
             {isError && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
             )}
             {items.map((item) => (
               <tr key={item._id} className={item.isActive ? "" : "bg-gray-50/60"}>
@@ -154,6 +155,7 @@ export default function InventoryPage() {
                   <span className="text-xs text-gray-400">{item.baseUnit}</span>
                   {isLowStock(item) && <span className="ml-2"><Badge tone="amber">low</Badge></span>}
                 </td>
+                <td className="px-4 py-2 text-right tabular-nums text-gray-600">{formatPaisa(decimalText(item.avgCost))}</td>
                 <td className="px-4 py-2 text-right tabular-nums">{formatPaisa(item.retailPrice)}</td>
                 <td className="px-4 py-2">
                   {item.isActive ? <Badge tone="green">active</Badge> : <Badge tone="red">inactive</Badge>}
