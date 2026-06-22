@@ -2,21 +2,24 @@ import { useState } from "react";
 import InventoryPage from "./pages/InventoryPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import SuppliersPage from "./pages/SuppliersPage";
+import SalesPage from "./pages/SalesPage";
 
 const TABS = [
+  { id: "sales", label: "Sales" },
   { id: "inventory", label: "Inventory" },
   { id: "purchases", label: "Purchases" },
   { id: "suppliers", label: "Suppliers" },
 ];
 
 const PAGES = {
+  sales: SalesPage,
   inventory: InventoryPage,
   purchases: PurchasesPage,
   suppliers: SuppliersPage,
 };
 
 function App() {
-  const [tab, setTab] = useState("inventory");
+  const [tab, setTab] = useState("sales");
 
   return (
     <div className="min-h-screen">
