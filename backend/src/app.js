@@ -5,6 +5,8 @@ import categoryRoutes from "./routes/categoryRoutes.js";
 import importRoutes from "./routes/importRoutes.js";
 import purchaseRoutes from "./routes/purchaseRoutes.js";
 import supplierRoutes from "./routes/supplierRoutes.js";
+import saleRoutes from "./routes/saleRoutes.js";
+import customerRoutes from "./routes/customerRoutes.js";
 import { currentUser } from "./middleware/currentUser.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -27,6 +29,8 @@ export function createApp() {
   app.use("/api/imports", importRoutes);
   app.use("/api/purchases", purchaseRoutes);
   app.use("/api/suppliers", supplierRoutes);
+  app.use("/api/sales", saleRoutes);
+  app.use("/api/customers", customerRoutes);
 
   app.use(notFound);
   app.use(errorHandler);

@@ -4,6 +4,7 @@ import {
   setItemActive,
   adjustStock,
   listItems,
+  listNegativeStockItems,
 } from "../services/itemService.js";
 import { recalculateItemCost } from "../services/costService.js";
 import Item from "../models/Item.js";
@@ -14,6 +15,10 @@ const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).cat
 export const recalculateCost = wrap(async (req, res) => {
   const result = await recalculateItemCost(req.params.id, { userId: req.userId });
   res.json(result);
+});
+
+export const negativeStock = wrap(async (_req, res) => {
+  res.json(await listNegativeStockItems());
 });
 
 export const list = wrap(async (req, res) => {

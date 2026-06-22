@@ -7,6 +7,8 @@ import { createItemSchema, updateItemSchema, adjustStockSchema } from "../../../
 const router = Router();
 
 router.get("/", items.list);
+// Literal path before "/:id" so it isn't captured as an id.
+router.get("/negative-stock", items.negativeStock);
 router.post("/", validate(createItemSchema), items.create);
 router.get("/:id", items.getOne);
 router.patch("/:id", validate(updateItemSchema), items.update);

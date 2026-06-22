@@ -293,3 +293,14 @@ export async function listItems({ search, categoryId, active, page = 1, limit = 
     pages: Math.ceil(total / safeLimit),
   };
 }
+
+/**
+ * Items whose cached stock has gone negative (spec 001's deferred "Negative Stock"
+ * view, built with sales in spec 004 — sales are what drive stock below 0). Most
+ * negative first, so the worst counts surface at the top.
+ */
+export async function listNegativeStockItems() {
+  return Item.find({ stockQty: { $lt: 0 } })
+    .sort({ stockQty: 1 })
+    .populate("categoryId", "name skuPrefix");
+}
