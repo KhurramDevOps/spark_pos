@@ -3,8 +3,22 @@ import Item from "../models/Item.js";
 import Supplier from "../models/Supplier.js";
 import Purchase from "../models/Purchase.js";
 import StockMovement from "../models/StockMovement.js";
+import SupplierReturn from "../models/SupplierReturn.js";
 import { recomputeItemCostByReplay } from "./costService.js";
-import { decimalToString, toDecimal128, add, subtract } from "../lib/decimal.js";
+import {
+  decimalToString,
+  toDecimal128,
+  add,
+  subtract,
+  multiply,
+  round,
+  parseDecimal,
+  isNegative,
+  isZero,
+  HALF_EVEN,
+} from "../lib/decimal.js";
+
+const negate = (d) => subtract("0", d);
 
 /** Run `fn(session)` inside a single MongoDB transaction (golden rule #3). */
 async function runInTransaction(fn) {
@@ -56,7 +70,7 @@ export async function reversePurchase(purchaseId, { userId } = {}) {
     // replay can drop the original+reversal pair together.
     const reversingRows = purchase.lines.map((l) => ({
       itemId: l.itemId,
-      qty: toDecimal128(subtract("0", decimalToString(l.qty))), // negate
+      qty: toDecimal128(negate(decimalToString(l.qty))),
       type: "reversal",
       costAtTime: l.unitCost,
       refId: purchase._id,
@@ -117,5 +131,117 @@ export async function reversePurchase(purchaseId, { userId } = {}) {
     await purchase.save({ session });
 
     return { purchase, supplier, items };
+  });
+}
+
+/**
+ * Record a supplier return (spec 003b): send some stock back, reduce what's owed,
+ * in one transaction. A return does NOT change avgCost — the units leave at the
+ * current average (captured per line as `costBasis`); only stock drops. avgCost +
+ * stockQty are still corrected via the one replay path (avg comes out unchanged,
+ * stock comes out reduced), with a drift guard.
+ *
+ * Reducing the payable can drive the balance negative (you'd already paid) — that
+ * negative balance is the refund due; `refundDue` is flagged. Returns may drive
+ * stock negative — allowed + surfaced, never blocked.
+ *
+ * @param {object} input - { supplierId, date?, lines:[{ itemId, qty (decimal string > 0) }], note? }
+ * @param {object} ctx - { userId } (audit; required)
+ * @returns {Promise<{ supplierReturn, supplier, items: object[] }>}
+ */
+export async function recordSupplierReturn(input, { userId } = {}) {
+  if (!userId) throw new Error("userId is required (audit)");
+  if (!input.supplierId) throw httpError("a supplier return requires a supplier", 400);
+  const lines = Array.isArray(input.lines) ? input.lines : [];
+  if (lines.length === 0) throw httpError("a return needs at least one line", 400);
+
+  return runInTransaction(async (session) => {
+    const supplier = await Supplier.findById(input.supplierId).session(session);
+    if (!supplier) throw httpError("supplier not found", 400);
+
+    const itemsById = new Map();
+    const removedByItem = new Map();
+    const storedLines = [];
+    let totalExact = "0";
+
+    for (const [i, line] of lines.entries()) {
+      const where = `line ${i + 1}`;
+      const qty = parseDecimal(line.qty, `${where} qty`);
+      if (isNegative(qty) || isZero(qty)) throw httpError(`${where}: qty must be greater than 0`, 400);
+
+      const key = String(line.itemId);
+      let item = itemsById.get(key);
+      if (!item) {
+        item = await Item.findById(line.itemId).session(session);
+        if (!item) throw httpError(`${where}: item not found`, 400);
+        itemsById.set(key, item);
+      }
+
+      // Units leave at the average they're carried at (return-at-current-avg).
+      const costBasis = decimalToString(item.avgCost);
+      totalExact = add(totalExact, multiply(qty, costBasis));
+      removedByItem.set(key, add(removedByItem.get(key) ?? "0", qty));
+      storedLines.push({ itemId: item._id, qty: toDecimal128(qty), costBasis: toDecimal128(costBasis) });
+    }
+
+    // The credit to the payable is whole paisa.
+    const total = round(totalExact, 0, HALF_EVEN);
+
+    // Create the return doc first so the ledger rows can reference it.
+    const [supplierReturn] = await SupplierReturn.create(
+      [
+        {
+          supplierId: supplier._id,
+          date: input.date ?? new Date(),
+          lines: storedLines,
+          total: toDecimal128(total),
+          refundDue: false, // set once the balance is moved
+          note: input.note,
+          createdBy: userId,
+        },
+      ],
+      { session }
+    );
+
+    // Reduce-stock ledger rows: negative qty, type "return", costAtTime = costBasis.
+    await StockMovement.create(
+      storedLines.map((l) => ({
+        itemId: l.itemId,
+        qty: toDecimal128(negate(decimalToString(l.qty))),
+        type: "return",
+        costAtTime: l.costBasis,
+        refId: supplierReturn._id,
+        createdBy: userId,
+      })),
+      { session, ordered: true }
+    );
+
+    // Replay each affected item (avg unchanged; stock dropped) with a drift guard.
+    const items = [];
+    for (const [key, removed] of removedByItem) {
+      const item = itemsById.get(key);
+      const expectedStock = subtract(decimalToString(item.stockQty), removed);
+      const { avgCost, stockQty } = await recomputeItemCostByReplay(item._id, { session });
+      if (stockQty !== expectedStock) {
+        throw httpError(
+          `return stock drift on item ${item._id}: replay ${stockQty} != expected ${expectedStock}`,
+          500
+        );
+      }
+      item.stockQty = toDecimal128(stockQty);
+      item.avgCost = toDecimal128(avgCost);
+      await item.save({ session });
+      items.push(item);
+    }
+
+    // Reduce the payable; a negative balance is the refund due (already paid).
+    const newBalance = subtract(decimalToString(supplier.balance), total);
+    supplier.balance = toDecimal128(newBalance);
+    await supplier.save({ session });
+
+    supplierReturn.refundDue = isNegative(newBalance);
+    await supplierReturn.save({ session });
+
+    return { supplierReturn, supplier, items };
   });
 }
