@@ -97,6 +97,28 @@ export function useSetSupplierActive() {
   });
 }
 
+export function useSupplierReturns(id) {
+  return useQuery({
+    queryKey: ["supplierReturns", id],
+    queryFn: () => api.fetchSupplierReturns(id),
+    enabled: Boolean(id),
+  });
+}
+
+/** A return reduces stock + the supplier payable and recomputes avgCost by replay. */
+export function useRecordReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }) => api.recordSupplierReturn(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["suppliers"] });
+      qc.invalidateQueries({ queryKey: ["supplier", id] });
+      qc.invalidateQueries({ queryKey: ["supplierReturns", id] });
+    },
+  });
+}
+
 /** A payment reduces the supplier's balance owed (its own transaction). */
 export function useRecordPayment() {
   const qc = useQueryClient();

@@ -35,3 +35,10 @@ export const fetchSupplierPayments = (id) => apiClient.get(`/suppliers/${id}/pay
 // body: { amount(rupees), date?, note? }
 export const recordSupplierPayment = (id, body) =>
   apiClient.post(`/suppliers/${id}/payments`, body);
+
+// ---- Supplier returns -----------------------------------------------------
+
+export const fetchSupplierReturns = (id) => apiClient.get(`/suppliers/${id}/returns`);
+// body: { date?, lines:[{ itemId, qty }], note? }  (costBasis captured server-side)
+export const recordSupplierReturn = (id, body) =>
+  apiClient.post(`/suppliers/${id}/returns`, body);

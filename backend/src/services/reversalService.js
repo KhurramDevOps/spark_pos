@@ -134,6 +134,13 @@ export async function reversePurchase(purchaseId, { userId } = {}) {
   });
 }
 
+/** Returns recorded against a supplier, newest first, with item names populated. */
+export async function listSupplierReturns(supplierId) {
+  return SupplierReturn.find({ supplierId })
+    .sort({ date: -1, createdAt: -1 })
+    .populate("lines.itemId", "name sku baseUnit");
+}
+
 /**
  * Record a supplier return (spec 003b): send some stock back, reduce what's owed,
  * in one transaction. A return does NOT change avgCost — the units leave at the

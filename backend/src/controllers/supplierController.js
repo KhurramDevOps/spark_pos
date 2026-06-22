@@ -7,7 +7,7 @@ import {
   recordSupplierPayment,
   listSupplierPayments,
 } from "../services/supplierService.js";
-import { recordSupplierReturn } from "../services/reversalService.js";
+import { recordSupplierReturn, listSupplierReturns } from "../services/reversalService.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -50,6 +50,10 @@ export const reactivate = wrap(async (req, res) => {
 
 export const payments = wrap(async (req, res) => {
   res.json(await listSupplierPayments(req.params.id));
+});
+
+export const returns = wrap(async (req, res) => {
+  res.json(await listSupplierReturns(req.params.id));
 });
 
 export const recordReturn = wrap(async (req, res) => {

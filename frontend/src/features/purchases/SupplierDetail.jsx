@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Modal, Badge, Button } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { formatBalance } from "../../lib/balance";
-import { useSupplier, useSupplierPayments, usePurchases } from "./hooks";
+import { useSupplier, useSupplierPayments, useSupplierReturns, usePurchases } from "./hooks";
 import PaymentForm from "./PaymentForm";
 import SupplierForm from "./SupplierForm";
+import SupplierReturnForm from "./SupplierReturnForm";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-PK", {
@@ -15,13 +16,13 @@ function formatDate(d) {
 }
 
 /**
- * Build a chronological ledger from credit/cash purchases + payments, carrying a
- * running balance from openingBalance. Only credit purchases (+) and payments (−)
- * move the balance; cash purchases appear for context but don't. Paisa are whole
- * integers here, so Number arithmetic is safe for this display (server is
- * authoritative for the cached balance).
+ * Build a chronological ledger from credit/cash purchases + payments + returns,
+ * carrying a running balance from openingBalance. Credit purchases (+), payments
+ * (−) and returns (−) move the balance; cash purchases appear for context but
+ * don't. Paisa are whole integers here, so Number arithmetic is safe for this
+ * display (server is authoritative for the cached balance).
  */
-function buildLedger(openingBalance, purchases, payments) {
+function buildLedger(openingBalance, purchases, payments, returns) {
   const events = [
     ...purchases.map((p) => ({
       kind: "purchase",
@@ -39,6 +40,15 @@ function buildLedger(openingBalance, purchases, payments) {
       amount: Number(decimalText(pm.amount)),
       note: pm.note,
     })),
+    ...returns.map((r) => ({
+      kind: "return",
+      id: r._id,
+      date: r.date,
+      createdAt: r.createdAt,
+      amount: Number(decimalText(r.total)),
+      note: r.note,
+      qty: r.lines.reduce((s, l) => s + Number(decimalText(l.qty)), 0),
+    })),
   ];
 
   // Oldest first to accumulate the running balance, then reverse for display.
@@ -51,7 +61,7 @@ function buildLedger(openingBalance, purchases, payments) {
   let running = Number(openingBalance);
   const rows = events.map((e) => {
     let delta = 0;
-    if (e.kind === "payment") delta = -e.amount;
+    if (e.kind === "payment" || e.kind === "return") delta = -e.amount;
     else if (e.credit) delta = e.amount;
     running += delta;
     return { ...e, delta, running };
@@ -63,14 +73,16 @@ function buildLedger(openingBalance, purchases, payments) {
 export default function SupplierDetail({ supplierId, onClose }) {
   const [showPayment, setShowPayment] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
 
   const { data: supplier, isLoading: loadingSupplier, error } = useSupplier(supplierId);
   const { data: payments = [] } = useSupplierPayments(supplierId);
+  const { data: returns = [] } = useSupplierReturns(supplierId);
   const { data: purchasesData } = usePurchases({ supplierId, limit: 100 });
   const purchases = purchasesData?.purchases ?? [];
 
   const opening = supplier ? decimalText(supplier.openingBalance) : "0";
-  const rows = supplier ? buildLedger(opening, purchases, payments) : [];
+  const rows = supplier ? buildLedger(opening, purchases, payments, returns) : [];
   const bal = supplier ? formatBalance(decimalText(supplier.balance)) : null;
   const openingNum = Number(opening);
 
@@ -82,6 +94,9 @@ export default function SupplierDetail({ supplierId, onClose }) {
         <>
           <Button variant="secondary" onClick={() => setShowEdit(true)} disabled={!supplier}>
             Edit
+          </Button>
+          <Button variant="secondary" onClick={() => setShowReturn(true)} disabled={!supplier}>
+            Record return
           </Button>
           <Button onClick={() => setShowPayment(true)} disabled={!supplier}>
             Record payment
@@ -133,6 +148,11 @@ export default function SupplierDetail({ supplierId, onClose }) {
                           <span className="text-gray-900">
                             Payment{r.note ? <span className="ml-1 text-xs text-gray-400">{r.note}</span> : null}
                           </span>
+                        ) : r.kind === "return" ? (
+                          <span className="text-gray-900">
+                            Return <Badge tone="green">stock back</Badge>
+                            {r.note ? <span className="ml-1 text-xs text-gray-400">{r.note}</span> : null}
+                          </span>
                         ) : r.credit ? (
                           <span className="text-gray-900">
                             Purchase <Badge tone="amber">credit</Badge>
@@ -176,6 +196,9 @@ export default function SupplierDetail({ supplierId, onClose }) {
       )}
       {showEdit && supplier && (
         <SupplierForm supplier={supplier} onClose={() => setShowEdit(false)} />
+      )}
+      {showReturn && supplier && (
+        <SupplierReturnForm supplier={supplier} onClose={() => setShowReturn(false)} />
       )}
     </Modal>
   );

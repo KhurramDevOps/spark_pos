@@ -18,6 +18,7 @@ router.post("/:id/deactivate", suppliers.deactivate);
 router.post("/:id/reactivate", suppliers.reactivate);
 router.get("/:id/payments", suppliers.payments);
 router.post("/:id/payments", validate(supplierPaymentSchema), suppliers.recordPayment);
+router.get("/:id/returns", suppliers.returns);
 router.post("/:id/returns", validate(createSupplierReturnSchema), suppliers.recordReturn);
 
 export default router;
