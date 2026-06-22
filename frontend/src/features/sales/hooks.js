@@ -24,6 +24,40 @@ export function useSale(id) {
   });
 }
 
+export function useSaleReturns(id) {
+  return useQuery({
+    queryKey: ["saleReturns", id],
+    queryFn: () => api.fetchSaleReturns(id),
+    enabled: Boolean(id),
+  });
+}
+
+function invalidateSaleWorld(qc, id) {
+  qc.invalidateQueries({ queryKey: ["items"] });
+  qc.invalidateQueries({ queryKey: ["sales"] });
+  qc.invalidateQueries({ queryKey: ["sale", id] });
+  qc.invalidateQueries({ queryKey: ["saleReturns", id] });
+  qc.invalidateQueries({ queryKey: ["customers"] });
+}
+
+/** Voiding a sale puts stock back and undoes its khata effect. */
+export function useVoidSale() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id) => api.voidSale(id),
+    onSuccess: (_data, id) => invalidateSaleWorld(qc, id),
+  });
+}
+
+/** A customer return puts stock back and refunds cash / credits the khata. */
+export function useRecordSaleReturn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }) => api.recordSaleReturn(id, body),
+    onSuccess: (_data, { id }) => invalidateSaleWorld(qc, id),
+  });
+}
+
 /** Recording a sale decreases stock (items) and, on credit, moves a khata (customers). */
 export function useCreateSale() {
   const qc = useQueryClient();

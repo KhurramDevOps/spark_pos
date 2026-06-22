@@ -1,15 +1,29 @@
-import { Modal, Badge, Button } from "../../components/ui";
+import { useState } from "react";
+import { Modal, Badge, Button, ErrorText } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
-import { useSale } from "./hooks";
+import { useSale, useVoidSale } from "./hooks";
+import SaleReturnForm from "./SaleReturnForm";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" });
 }
 const rsFromPaisa = (paisa) => formatPaisa(paisa);
 
-/** Read-only view of one posted sale: per-line price, cost, and profit. */
+/** View of one posted sale: per-line price/cost/profit, with void + return actions. */
 export default function SaleDetail({ saleId, onClose }) {
   const { data: s, isLoading, error } = useSale(saleId);
+  const voidMut = useVoidSale();
+  const [confirming, setConfirming] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
+
+  const voided = s?.voided;
+
+  async function doVoid() {
+    try {
+      await voidMut.mutateAsync(saleId);
+      setConfirming(false);
+    } catch { /* shown inline */ }
+  }
 
   const totalProfit =
     s?.lines.reduce(
@@ -18,12 +32,44 @@ export default function SaleDetail({ saleId, onClose }) {
       0
     ) ?? 0;
 
+  const footer = !s ? (
+    <Button onClick={onClose}>Close</Button>
+  ) : confirming ? (
+    <>
+      <Button variant="secondary" type="button" onClick={() => setConfirming(false)} disabled={voidMut.isPending}>Keep it</Button>
+      <Button variant="danger" type="button" onClick={doVoid} disabled={voidMut.isPending}>
+        {voidMut.isPending ? "Voiding…" : "Yes, void"}
+      </Button>
+    </>
+  ) : (
+    <>
+      <Button variant="secondary" type="button" onClick={onClose}>Close</Button>
+      <Button variant="secondary" type="button" onClick={() => setShowReturn(true)} disabled={voided}>Record return</Button>
+      <Button variant="danger" type="button" onClick={() => setConfirming(true)} disabled={voided}>
+        {voided ? "Voided" : "Void"}
+      </Button>
+    </>
+  );
+
   return (
-    <Modal title="Sale" onClose={onClose} footer={<Button onClick={onClose}>Close</Button>}>
+    <Modal title="Sale" onClose={onClose} footer={footer}>
       {isLoading && <p className="text-sm text-gray-500">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error.message}</p>}
       {s && (
         <div className="space-y-4">
+          {voided && (
+            <div className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-600">
+              <Badge tone="gray">Voided</Badge>
+              <span>This sale was voided{s.voidedAt ? ` on ${formatDate(s.voidedAt)}` : ""} — its stock and khata effect were undone.</span>
+            </div>
+          )}
+          {confirming && !voided && (
+            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              Void this sale? Stock goes back and any credit khata is reversed. This can't be undone (re-enter the sale if needed).
+            </div>
+          )}
+          {voidMut.isError && <ErrorText>{voidMut.error.message}</ErrorText>}
+
           <div className="grid grid-cols-2 gap-y-2 text-sm">
             <span className="text-gray-500">Date</span>
             <span className="text-right text-gray-900">{formatDate(s.date)}</span>
@@ -96,6 +142,8 @@ export default function SaleDetail({ saleId, onClose }) {
           </div>
         </div>
       )}
+
+      {showReturn && s && <SaleReturnForm sale={s} onClose={() => setShowReturn(false)} />}
     </Modal>
   );
 }

@@ -16,6 +16,11 @@ export function fetchSales({ customerId, from, to, paymentType, page, limit } = 
 }
 
 export const getSale = (id) => apiClient.get(`/sales/${id}`);
+// Undo a posted sale: stock back, khata effect undone (spec 004b). Stock-only, no replay.
+export const voidSale = (id) => apiClient.post(`/sales/${id}/void`);
+export const fetchSaleReturns = (id) => apiClient.get(`/sales/${id}/returns`);
+// body: { customerId?, lines:[{ itemId, qty }], refundMethod, note? }
+export const recordSaleReturn = (id, body) => apiClient.post(`/sales/${id}/returns`, body);
 
 export const fetchCustomers = (active) =>
   apiClient.get(`/customers${active ? `?active=${active}` : ""}`);

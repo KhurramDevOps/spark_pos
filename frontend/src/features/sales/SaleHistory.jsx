@@ -124,12 +124,15 @@ export default function SaleHistory() {
                     <td className="px-4 py-2.5 text-gray-900">{formatDate(s.date)}</td>
                     <td className="px-4 py-2.5 text-gray-700">{s.customerId?.name ?? "—"}</td>
                     <td className="px-4 py-2.5">
-                      {s.paymentType === "credit" ? <Badge tone="amber">Credit</Badge> : <Badge tone="green">Cash</Badge>}
+                      <span className="inline-flex items-center gap-1.5">
+                        {s.paymentType === "credit" ? <Badge tone="amber">Credit</Badge> : <Badge tone="green">Cash</Badge>}
+                        {s.voided && <Badge tone="gray">Voided</Badge>}
+                      </span>
                     </td>
-                    <td className="px-4 py-2.5 text-right font-medium tabular-nums text-gray-900">
+                    <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${s.voided ? "text-gray-400 line-through" : "text-gray-900"}`}>
                       {formatPaisa(decimalText(s.total))}
                     </td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums ${profit < 0 ? "text-red-600" : "text-green-700"}`}>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${s.voided ? "text-gray-400 line-through" : profit < 0 ? "text-red-600" : "text-green-700"}`}>
                       {formatPaisa(Math.round(profit))}
                     </td>
                   </tr>
