@@ -8,6 +8,22 @@ export function useCustomers(active) {
   });
 }
 
+export function useSales(filters) {
+  return useQuery({
+    queryKey: ["sales", filters],
+    queryFn: () => api.fetchSales(filters),
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useSale(id) {
+  return useQuery({
+    queryKey: ["sale", id],
+    queryFn: () => api.getSale(id),
+    enabled: Boolean(id),
+  });
+}
+
 /** Recording a sale decreases stock (items) and, on credit, moves a khata (customers). */
 export function useCreateSale() {
   const qc = useQueryClient();

@@ -3,10 +3,12 @@ import InventoryPage from "./pages/InventoryPage";
 import PurchasesPage from "./pages/PurchasesPage";
 import SuppliersPage from "./pages/SuppliersPage";
 import SalesPage from "./pages/SalesPage";
+import SalesHistoryPage from "./pages/SalesHistoryPage";
 import CustomersPage from "./pages/CustomersPage";
 
 const TABS = [
   { id: "sales", label: "Sales" },
+  { id: "saleHistory", label: "Sales History" },
   { id: "customers", label: "Customers" },
   { id: "inventory", label: "Inventory" },
   { id: "purchases", label: "Purchases" },
@@ -15,6 +17,7 @@ const TABS = [
 
 const PAGES = {
   sales: SalesPage,
+  saleHistory: SalesHistoryPage,
   customers: CustomersPage,
   inventory: InventoryPage,
   purchases: PurchasesPage,
