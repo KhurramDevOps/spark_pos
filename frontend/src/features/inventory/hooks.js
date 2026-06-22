@@ -36,6 +36,8 @@ export const useAdjustStock = () =>
   useInvalidatingMutation(({ id, body }) => api.adjustStock(id, body));
 export const useDeactivateItem = () => useInvalidatingMutation((id) => api.deactivateItem(id));
 export const useReactivateItem = () => useInvalidatingMutation((id) => api.reactivateItem(id));
+/** Owner-only repair: replay avgCost/stockQty from movement history. */
+export const useRecalculateCost = () => useInvalidatingMutation((id) => api.recalculateCost(id));
 
 // ---- CSV import -----------------------------------------------------------
 

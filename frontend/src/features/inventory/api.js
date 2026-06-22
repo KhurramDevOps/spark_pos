@@ -18,6 +18,8 @@ export const updateItem = (id, body) => apiClient.patch(`/items/${id}`, body);
 export const adjustStock = (id, body) => apiClient.post(`/items/${id}/adjust`, body);
 export const deactivateItem = (id) => apiClient.post(`/items/${id}/deactivate`, {});
 export const reactivateItem = (id) => apiClient.post(`/items/${id}/reactivate`, {});
+// Owner-only: re-derive avgCost + stockQty from movement history (spec 003b repair).
+export const recalculateCost = (id) => apiClient.post(`/items/${id}/recalculate-cost`, {});
 
 // ---- Categories -----------------------------------------------------------
 

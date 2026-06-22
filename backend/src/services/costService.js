@@ -40,8 +40,6 @@ import { add, decimalToString, toDecimal128, isNegative } from "../lib/decimal.j
  * @returns {Promise<{ avgCost: string, stockQty: string }>} decimal strings (paisa / qty)
  */
 export async function recomputeItemCostByReplay(itemId, { session, excludeRefIds = [] } = {}) {
-  const exclude = new Set(excludeRefIds.map((id) => String(id)));
-
   const query = StockMovement.find({ itemId })
     .sort({ createdAt: 1, _id: 1 })
     .select("type qty costAtTime refId reversalRef")
@@ -49,11 +47,22 @@ export async function recomputeItemCostByReplay(itemId, { session, excludeRefIds
   if (session) query.session(session);
   const movements = await query;
 
+  // Reversed purchases never contribute to cost. They are SELF-DESCRIBING in the
+  // ledger: every reversing row carries `reversalRef = the reversed purchase id`.
+  // So we derive the exclusion set from the movements themselves (plus any ids the
+  // caller passed for an in-flight reversal), and drop each reversed purchase's
+  // original rows AND their reversing pair ("exclude, don't subtract" — ADR-006).
+  // Without this, a standalone recompute would replay a reversed purchase's cost
+  // back in and silently undo the reversal's avgCost correction.
+  const exclude = new Set(excludeRefIds.map((id) => String(id)));
+  for (const mv of movements) {
+    if (mv.reversalRef != null) exclude.add(String(mv.reversalRef));
+  }
+
   let runQty = "0";
   let runAvg = "0";
 
   for (const mv of movements) {
-    // Drop a reversed purchase's rows and their reversing pair (exclude, don't subtract).
     if (exclude.size > 0) {
       const ref = mv.refId != null ? String(mv.refId) : null;
       const rref = mv.reversalRef != null ? String(mv.reversalRef) : null;

@@ -6,6 +6,7 @@ import ItemForm from "../features/inventory/ItemForm";
 import AdjustStockModal from "../features/inventory/AdjustStockModal";
 import CategoryManager from "../features/inventory/CategoryManager";
 import ImportModal from "../features/inventory/ImportModal";
+import RecalculateCostModal from "../features/inventory/RecalculateCostModal";
 
 const LIMIT = 20;
 
@@ -45,6 +46,7 @@ export default function InventoryPage() {
 
   const [formItem, setFormItem] = useState(undefined); // undefined = closed, null = new
   const [adjustItem, setAdjustItem] = useState(null);
+  const [recalcItem, setRecalcItem] = useState(null);
   const [showCategories, setShowCategories] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [rowError, setRowError] = useState("");
@@ -164,6 +166,7 @@ export default function InventoryPage() {
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" onClick={() => setAdjustItem(item)}>Adjust</Button>
                     <Button variant="ghost" onClick={() => setFormItem(item)}>Edit</Button>
+                    <Button variant="ghost" title="Owner-only: replay avg cost from history" onClick={() => setRecalcItem(item)}>Recalc</Button>
                     <Button
                       variant={item.isActive ? "danger" : "secondary"}
                       onClick={() => toggleActive(item)}
@@ -195,6 +198,7 @@ export default function InventoryPage() {
         <ItemForm item={formItem} categories={categories} onClose={() => setFormItem(undefined)} />
       )}
       {adjustItem && <AdjustStockModal item={adjustItem} onClose={() => setAdjustItem(null)} />}
+      {recalcItem && <RecalculateCostModal item={recalcItem} onClose={() => setRecalcItem(null)} />}
       {showCategories && <CategoryManager onClose={() => setShowCategories(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </div>

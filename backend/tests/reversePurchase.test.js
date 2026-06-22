@@ -11,6 +11,7 @@ import Purchase from "../src/models/Purchase.js";
 import { createItem } from "../src/services/itemService.js";
 import { recordPurchase } from "../src/services/purchaseService.js";
 import { reversePurchase } from "../src/services/reversalService.js";
+import { recalculateItemCost } from "../src/services/costService.js";
 import { recordSupplierPayment } from "../src/services/supplierService.js";
 import { decimalToString } from "../src/lib/decimal.js";
 
@@ -131,6 +132,21 @@ test("reversal is one transaction — a mid-operation failure persists nothing",
   assert.equal((await Purchase.findById(purchase._id)).reversed, false);
   assert.equal(decimalToString((await fresh(item._id)).stockQty), beforeStock);
   assert.equal(await StockMovement.countDocuments({ type: "reversal" }), 0);
+});
+
+test("recalculate after a reverse finds NO drift (replay auto-excludes the reversed purchase)", async () => {
+  // Guards the bug where a standalone replay would add the reversed purchase's
+  // cost back in and undo the reversal's correction.
+  const item = await newItem();
+  await buy({ lines: [{ itemId: item._id, qty: "100", unitCost: "10000" }] }); // ₹100
+  const { purchase: b } = await buy({ lines: [{ itemId: item._id, qty: "100", unitCost: "14000" }] }); // ₹120
+  await reversePurchase(b._id, { userId });
+  assert.equal(decimalToString((await fresh(item._id)).avgCost), "10000"); // corrected to ₹100
+
+  const report = await recalculateItemCost(item._id, { userId });
+  assert.equal(report.changed, false, "a reversed item must not drift on recalculate");
+  assert.equal(report.after.avgCost, "10000");
+  assert.equal(report.after.stockQty, "100");
 });
 
 test("reverse not found → 404", async () => {
