@@ -8,5 +8,6 @@ const router = Router();
 router.get("/", purchases.list);
 router.post("/", validate(createPurchaseSchema), purchases.create);
 router.get("/:id", purchases.getOne);
+router.post("/:id/reverse", purchases.reverse);
 
 export default router;

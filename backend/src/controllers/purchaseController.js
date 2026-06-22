@@ -1,4 +1,5 @@
 import { recordPurchase, listPurchases, getPurchase } from "../services/purchaseService.js";
+import { reversePurchase } from "../services/reversalService.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -35,4 +36,9 @@ export const list = wrap(async (req, res) => {
 export const getOne = wrap(async (req, res) => {
   const purchase = await getPurchase(req.params.id);
   res.json(purchase);
+});
+
+export const reverse = wrap(async (req, res) => {
+  const result = await reversePurchase(req.params.id, { userId: req.userId });
+  res.json(result);
 });

@@ -39,6 +39,15 @@ const purchaseSchema = new Schema(
 
     note: { type: String, trim: true },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+
+    // Reversal audit (spec 003b). A reversed purchase is never deleted; its
+    // effects are undone by reversing StockMovements + an avgCost replay, and it
+    // is marked here so it can't be reversed twice and reads as reversed in history.
+    reversed: { type: Boolean, default: false },
+    reversedAt: { type: Date },
+    reversedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    // The reversing StockMovement batch shares this purchase's _id as reversalRef;
+    // kept as a flag-pair with `reversed`. (No separate reversal document.)
   },
   { timestamps: true }
 );
