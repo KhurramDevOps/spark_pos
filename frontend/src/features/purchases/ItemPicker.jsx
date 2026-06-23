@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchItems } from "../inventory/api";
 import { TextInput } from "../../components/ui";
+import ItemImage from "../../components/ItemImage";
 import { decimalText } from "../../lib/format";
 
 /**
@@ -22,9 +23,12 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
   if (selected) {
     return (
       <div className="flex items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-sm">
-        <span>
-          <span className="font-medium text-gray-900">{selected.name}</span>{" "}
-          <span className="font-mono text-xs text-gray-500">{selected.sku}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <ItemImage image={selected.image} size={28} alt={selected.name} />
+          <span className="truncate">
+            <span className="font-medium text-gray-900">{selected.name}</span>{" "}
+            <span className="font-mono text-xs text-gray-500">{selected.sku}</span>
+          </span>
         </span>
         <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-700" onClick={onClear}>
           change
@@ -60,13 +64,16 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
                   setOpen(false);
                   setQ("");
                 }}
-                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50"
               >
-                <span>
-                  <span className="font-medium text-gray-900">{it.name}</span>{" "}
-                  <span className="font-mono text-xs text-gray-500">{it.sku}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  <ItemImage image={it.image} size={40} hover alt={it.name} />
+                  <span className="truncate">
+                    <span className="font-medium text-gray-900">{it.name}</span>{" "}
+                    <span className="font-mono text-xs text-gray-500">{it.sku}</span>
+                  </span>
                 </span>
-                <span className="text-xs text-gray-400">
+                <span className="shrink-0 text-xs text-gray-400">
                   {decimalText(it.stockQty)} {it.baseUnit}
                 </span>
               </button>
