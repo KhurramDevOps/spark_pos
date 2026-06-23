@@ -1,6 +1,6 @@
 # Spec: 006b — Product images (inventory + POS polish)
 
-- **Status:** draft (pending review)
+- **Status:** in-progress (review complete; building storage driver + tests first)
 - **Phase:** Phase 6 polish — visual upgrade to inventory/POS/item picker.
 - **Author / date:** <you> / <fill in>
 - **Builds on:** Item model (spec 001), Inventory CRUD UI, POS item picker (spec 004),
@@ -68,8 +68,9 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
 - **Image source: either upload OR URL, per item.** Single image per item (no galleries).
   The Item gets one new field, `image`, that stores `{ kind: 'upload' | 'url', ref: string }`
   — `ref` is a storage key (for uploads) or the external URL (for URLs).
-- **Upload flow:** drag-and-drop OR file-picker OR paste-from-clipboard, into the
-  Add/Edit Item modal. Accepted types: JPEG, PNG, WebP. Max input size: 10 MB (rejected at
+- **Upload flow:** drag-and-drop OR file-picker, into the Add/Edit Item modal.
+  (Paste-from-clipboard is DEFERRED — it needs paste-event blob extraction for marginal
+  gain; revisit post-v1.) Accepted types: JPEG, PNG, WebP. Max input size: 10 MB (rejected at
   the boundary; never stored). Server-side resize on upload to **max 800px long edge,
   JPEG quality 80**, producing thumbnails well under 200 KB each. Original is NOT kept —
   the resized version replaces it. This is intentional: one canonical asset per item, no
@@ -96,13 +97,15 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
   thumbnail. Used everywhere an image is absent.
 - **Storage driver abstraction:** a tiny `lib/storage/` module exposing `put(buffer,
   keyHint) → key`, `delete(key)`, and `urlFor(key) → string`. Two implementations:
-  `LocalDiskDriver` (writes to `backend/uploads/items/`, served at `/static/items/<key>`)
+  `LocalDiskDriver` (writes to `backend/uploads/items/`, served at `/api/static/items/<key>`)
   and a stub `S3Driver` (interface only for now, with TODO markers — not actually
   implemented until deployment time). Driver chosen by `STORAGE_DRIVER` env var.
-- **A new static-file route** in Express, `GET /static/items/:key`, that the
-  LocalDiskDriver uses to serve the saved files. Owner-only is **not** required for
-  reading images (they're not sensitive); the route is public-read. Uploading is
-  owner-only, same as every other write.
+- **A new static-file route** in Express, `GET /api/static/items/:key`, that the
+  LocalDiskDriver uses to serve the saved files. The `/api` prefix is deliberate: it keeps
+  the single existing Vite dev proxy rule (`/api → :5001`) covering images too, preserves
+  the one-origin assumption (the frontend builds no non-`/api` URLs), and keeps prod deploy
+  simpler. Owner-only is **not** required for reading images (they're not sensitive); the
+  route is public-read. Uploading is owner-only, same as every other write.
 
 **Out of scope:**
 - **Multiple images per item / galleries.** One image, one slot. If owner needs to
@@ -133,13 +136,15 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
   Stored as a sub-document on Item. Absent / null means "no image." No separate
   collection — images are 1:1 with items, lifecycle bound to the item.
 - **No changes** to any other model (Sale, Purchase, etc.). Sale lines DO NOT snapshot
-  the item's image at sale time — sale history shows current item image (if changed since
-  the sale, the latest image displays). This is a deliberate decision: images are
-  decorative, not financial. costAtTime stays the only thing snapshotted.
+  the item's image at sale time. This is a deliberate decision: images are decorative, not
+  financial. `costAtTime` stays the only thing snapshotted. Sale history is text-only and
+  shows NO thumbnails (see §8) — and the `getSale` populate projection
+  (`.populate("lines.itemId", "name sku baseUnit")`) deliberately does NOT include `image`,
+  so the regression holds even if someone later forgets this rule.
 - **Filesystem layout (LocalDiskDriver):**
   - `backend/uploads/items/<key>.jpg` — resized JPEGs, key is `<itemId>-<timestamp>.jpg`
     so replacing an image generates a new key (browser cache bypassed naturally) and the
-    old key is deleted explicitly.
+    old key is deleted explicitly. Served at `GET /api/static/items/<key>`.
   - `backend/uploads/.gitignore` containing `*` so nothing in here is tracked by git.
   - Directory created on first upload if missing.
 - **Indexes:** none new needed. Image presence isn't queried.
@@ -161,9 +166,10 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
   a network dependency and slows the form; let bad URLs surface as broken images at
   display time, with a graceful fallback to the placeholder.
 - **Cache busting:** the `updatedAt` field on the image sub-doc is appended as a query
-  param when the frontend constructs the `<img src>`: `/static/items/<key>?v=<ts>`.
+  param when the frontend constructs the `<img src>`: `/api/static/items/<key>?v=<ts>`.
   This ensures replacing an image immediately reflects in already-loaded browser tabs
-  without aggressive cache headers.
+  without aggressive cache headers. (This is an `<img src>`, not an `apiClient` fetch, so
+  no apiClient change is needed.)
 - **Storage driver picked by env var.** `STORAGE_DRIVER=local` (default) →
   LocalDiskDriver. `STORAGE_DRIVER=s3` → S3Driver (stub for now; throws "not implemented"
   until you wire it for production). Same Item.image shape regardless.
@@ -181,10 +187,12 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
 
 ## 7. Validation rules
 - Item.image on save: if present, `kind` ∈ {'upload', 'url'} and `ref` is a non-empty
-  string. If kind === 'url', ref must be a valid http(s) URL. If kind === 'upload', ref
-  must match the format the driver returned (alphanumeric + `-` + `.jpg` for local).
-- Upload endpoint: multipart/form-data, single field `file`, type ∈ allowed set,
-  size ≤ 10 MB. Reject anything else with 400 and a clear message.
+  string. If kind === 'url', ref must be a valid http(s) URL (shared `httpUrl` validator).
+  If kind === 'upload', ref must match the format the driver returned (alphanumeric + `-` +
+  `.jpg` for local). The image is then served at `GET /api/static/items/<ref>`.
+- Upload endpoint: multipart/form-data (parsed by `multer`, memory storage), single field
+  `file`, type ∈ allowed set, size ≤ 10 MB. Reject anything else with 400 and a clear
+  message. (Drag-drop / file-picker only in v1; clipboard paste deferred.)
 - URL endpoint (saved via the normal Item PATCH, not a separate route): same URL parse.
 - Editing an existing item's image is a separate sub-route (`POST /items/:id/image` for
   upload, `DELETE /items/:id/image` for remove, and normal `PATCH /items/:id` for URL
@@ -220,38 +228,40 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
       preview, same UX as other invalid fields.
 - [ ] Storage driver: STORAGE_DRIVER=local works; STORAGE_DRIVER=s3 throws a clear "not
       implemented; configure local for dev" error rather than silently misbehaving.
-- [ ] Static route `/static/items/:key` returns 200 + image bytes for valid keys, 404 for
-      missing.
+- [ ] Static route `/api/static/items/:key` returns 200 + image bytes for valid keys, 404
+      for missing.
+- [ ] Images load successfully through the dev proxy (`curl
+      http://localhost:5173/api/static/items/<key>` returns 200 + image bytes — the single
+      `/api` Vite proxy rule covers it).
 - [ ] Owner-only on all write endpoints; static read route has no auth.
-- [ ] Lighthouse / visual smoke: Inventory page with 50 items loads in < 1.5s on local;
-      thumbnails lazy-load via `loading="lazy"` (no all-at-once network burst).
+- [ ] Best-effort orphan cleanup: when deleting an upload-backed image and the file is
+      already gone / unlinkable, the operation logs a warning and still succeeds (Item.image
+      cleared, no 500 to the user).
+- [ ] Visual smoke (manual): Inventory page with ~50 items feels snappy, AND thumbnails
+      carry `loading="lazy"` so they don't all fetch at once (assert the attribute is present
+      on rendered thumbnails — the CI-checkable part).
 - [ ] Sale-time snapshot regression: a sale's item image change after the sale does NOT
-      retroactively change anything in sale history (image is decorative, not snapshotted).
+      retroactively change anything in sale history (image is decorative, not snapshotted;
+      `getSale` populate projection excludes `image`).
 
-## 9. Open questions (resolve in review)
-1. **Hover-preview implementation.** Two options: (a) pure CSS positioned absolute with
-   `:hover` triggering opacity/scale — simplest, no JS, perfectly smooth, breaks down at
-   row edges (preview might clip viewport). (b) JS-positioned preview that flips to the
-   other side when near viewport edge. Leaning: (a) for v1, accept the edge-clipping as
-   a minor cosmetic issue. Confirm.
-2. **Placeholder design.** Three plausible looks: (a) light gray box + camera icon, (b)
-   colored block based on item category (so categories are color-coded even without
-   images), (c) item initials (first 1-2 letters of name, centered). Leaning: (a) — most
-   neutral, doesn't compete with real images. Confirm.
-3. **CSV `imageUrl` column.** In scope per §4 as a small addition. Confirm — or defer to
-   a follow-up if it slows this slice.
-4. **Display in POS sale's success panel / receipt area.** Show the sold items'
-   thumbnails on the post-sale confirmation? Probably nice. Confirm.
-5. **Reports thumbnail size.** §4 says ~32px. Confirm that's small enough to not bloat
-   the row height in the Item performance table.
-6. **S3 driver: stub now or fully implement now?** Leaning: stub now (it's not needed
-   until deploy day, and implementing it requires choosing the provider + the credentials
-   handling, which is a deploy-time concern). Confirm.
-7. **What about the existing items that already exist with no image?** Confirm: no
-   backfill UI needed; owner just edits items as they come up. Or do we want a
-   "no-image items" filter on Inventory so owner can find them easily? Leaning: a small
-   filter chip ("only items without images") on the Inventory page is a 10-line addition
-   and genuinely useful for the initial fill-in pass. Confirm.
+## 9. Decisions (resolved in review)
+1. **Hover-preview:** **pure CSS** (positioned-absolute `:hover` → opacity/scale). No JS lib.
+   Edge-clipping near the viewport edge is accepted as a minor cosmetic issue for v1. ✅
+2. **Placeholder:** **light gray box + small icon** (camera/box). Most neutral; doesn't
+   compete with real images. (Category-color and initials rejected — too noisy / read as
+   "missing.") ✅
+3. **CSV `imageUrl` column:** **IN this slice** — confirmed a small, clean addition (HEADERS
+   entry + a `normalizeRow` block using the new shared `httpUrl` validator; preview UX is
+   automatic). ✅
+4. **POS success-panel thumbnails:** **DEFERRED.** Keeps the three-surface discipline (§10):
+   money/confirmation screens stay text-only. Revisit only if real usage asks for it. ✅
+5. **Reports thumbnail size:** **~32px**, in a fixed-size container so row height doesn't
+   grow, with `loading="lazy"`. ✅
+6. **S3 driver:** **stub now** (throws "not implemented"). Full impl needs a provider +
+   credentials handling — a deploy-time concern. The interface is the seam. ✅
+7. **Items without images:** no backfill UI; owner edits items as they come up — PLUS a small
+   **"only items without images" filter chip** on Inventory (cheap, genuinely useful for the
+   initial fill-in pass). ✅
 
 ## 10. Notes / decisions
 - This is the first spec in the project that touches infrastructure (filesystem + driver
@@ -269,10 +279,14 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
 - Build order:
   1. Storage driver interface + LocalDiskDriver + S3Driver stub + tests for the local
      driver (put/delete/urlFor).
-  2. Item.image field + Zod validation + the new image sub-routes (POST upload, DELETE
-     remove, plus URL set via existing PATCH).
-  3. Sharp resize pipeline + the static-file route + reject-too-large / wrong-type tests.
-  4. CSV import: imageUrl column support (small addition to existing validator).
+  2. Item.image field + Zod validation (createItem, updateItem) + the new image sub-routes
+     (POST upload with **multer** for multipart + **Sharp** for resize, DELETE remove, plus
+     URL set via existing PATCH) — both deps installed in this step so the upload route is
+     functional end-to-end when its tests are written.
+  3. Sharp resize pipeline + the `GET /api/static/items/:key` route + reject-too-large /
+     wrong-type tests.
+  4. CSV import: `imageUrl` column support (HEADERS extension + `normalizeRow` block using a
+     new shared `httpUrl` validator — small addition to the existing validator).
   5. PAUSE on green. Verify backend slice by uploading via curl / a temporary test page.
   6. Frontend: ItemImage component (handles upload | url | placeholder | hover-preview)
      as a single reusable component. Then wire into Inventory list, POS picker, Reports.

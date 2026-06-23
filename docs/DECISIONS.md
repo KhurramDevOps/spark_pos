@@ -15,6 +15,35 @@ Format:
 
 ---
 
+## ADR-012 — Binary assets live outside MongoDB, behind a storage-driver interface
+- Date: 2026-06-23
+- Status: accepted
+- Context: Spec 006b adds the project's first binary content (product images). The question is
+  where the bytes live and how the code that handles them survives the move from local-dev to
+  a real deployment (which may have ephemeral or per-instance disk).
+- Decision:
+  - **Image (and any future binary) bytes never go in MongoDB.** Not as Base64, not in GridFS.
+    MongoDB stores only a **reference string** — `Item.image.ref` is a storage key (uploads) or
+    an external URL. The bytes live on a filesystem (local disk now) or object storage (S3/R2,
+    prod).
+  - **All binary I/O goes through a tiny storage-driver interface** — `put(buffer, keyHint) →
+    key`, `delete(key)`, `urlFor(key) → string` — with `LocalDiskDriver` (writes
+    `backend/uploads/items/`, served at `GET /api/static/items/:key`) and a stub `S3Driver`
+    (throws "not implemented" until deploy). The driver is selected by the `STORAGE_DRIVER` env
+    var. The `Item.image` shape is identical regardless of driver.
+  - **Why:** binary blobs in MongoDB bloat the working set (every query touching Item drags the
+    bytes around), turn `mongodump`/restore into a slow file transfer, and don't shard sensibly.
+    A reference + external store is the industry-standard split. The driver interface exists
+    because hard-coding `fs.writeFile('./uploads/...')` breaks on day one of a deployment where
+    disk is ephemeral or per-instance — the code must not assume a local filesystem.
+  - **EXTENSION POINT (future-me):** the driver interface IS the extension point. Going to
+    production object storage is implementing `S3Driver` against the same three methods and
+    flipping `STORAGE_DRIVER=s3` — a config change, not a rewrite of the upload pipeline. No
+    caller knows or cares which driver is active.
+- Consequences: lean Mongo documents and fast backups; one swap-point for prod storage; a small
+  amount of upfront abstraction (three methods + two impls) that pays for itself the first time
+  this deploys. Reading images is public (`/api/static/...`, no auth); writing is owner-gated.
+
 ## ADR-011 — Aggregate on read; never denormalize derived totals
 - Date: 2026-06-23
 - Status: accepted
