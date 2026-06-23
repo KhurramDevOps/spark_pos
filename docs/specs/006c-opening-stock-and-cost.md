@@ -1,6 +1,7 @@
 # Spec: 006c — Opening stock & unit cost (the real-world "I already have inventory" gap)
 
-- **Status:** draft (pending review)
+- **Status:** in-progress (review complete; review fixes incorporated; building costService
+  + StockMovement enum slice first)
 - **Phase:** Phase 6 polish (final, before Phase 7 AI). Same discipline tier as 003b / 004b /
   006b — fixes a real correctness gap surfaced by real shop usage.
 - **Author / date:** <you> / <fill in>
@@ -89,16 +90,27 @@ Everything else (UI, validation, owner-gating) is straightforward.
 
 1. **New StockMovement type: `opening`.**
    - Fields (same shape as existing movements): `itemId`, `type: 'opening'`, `qty`
-     (positive Decimal128), `unitCost` (Decimal128 — the per-unit cost being declared),
-     `date` (user-supplied, default today), `note` (optional), `createdBy`, `createdAt`
-     (server-set, the posting-order anchor).
+     (positive Decimal128), **`costAtTime`** (Decimal128 — the per-unit cost being
+     declared, stored in the SAME field purchases use; there is no separate `unitCost`
+     field — see §5), `date` (user-supplied, default today), `note` (optional),
+     `createdBy`, `createdAt` (server-set, the posting-order anchor).
+   - The API/UI input is named **`openingUnitCost`** for clarity; it is persisted as
+     **`costAtTime`** on the StockMovement.
    - **Treated as a purchase-type event** by costService's replay (the only behavioral
-     change to the engine — see §6).
+     change to the engine — see §6). The replay's existing null/negative-cost guard
+     (it throws on a cost-bearing movement missing/with-negative `costAtTime`) extends
+     to `opening` as well.
 
 2. **Manual single-item path: opening fields on Add/Edit Item modal.**
-   - When CREATING an item: optional "Opening stock" section with `qty` and `unitCost`
-     inputs. If filled, the create transaction also writes one `opening` StockMovement
-     and sets the item's stockQty + avgCost in that same transaction.
+   - When CREATING an item: optional "Opening stock" section with `openingQty` and
+     `openingUnitCost` inputs. If filled, the create transaction also writes one
+     `opening` StockMovement (qty = openingQty, `costAtTime` = openingUnitCost) and sets
+     the item's stockQty + avgCost in that same transaction.
+   - **`createItem` change (going forward):** when opening fields are provided, emit a
+     `type: 'opening'` movement carrying `costAtTime`, NOT the legacy
+     `type: 'adjustment'` movement noted `"opening stock"` that the current code writes.
+     This stops the broken (cost-less) legacy shape from being created from day one;
+     existing legacy rows are cleaned up by the repair tool (path #4). See §10.
    - When EDITING an item: the "Opening stock" section is replaced by a separate
      **"Repair opening cost"** action (owner-only, behind a confirmation), described in
      §4 path #3 — editing is NOT a casual operation.
@@ -106,15 +118,25 @@ Everything else (UI, validation, owner-gating) is straightforward.
      enters at qty 0 / avgCost 0 — current behavior, still valid) AND the new opening
      fields (declare what you have).
 
-3. **CSV import: two new optional columns `openingQty` and `openingUnitCost`.**
+3. **CSV import: reuse the existing `openingStock` column for qty; add ONE new optional
+   column `openingUnitCost`.** (The importer already has an `openingStock` column → it
+   maps to the row's opening qty. Do not introduce a second `openingQty` column.)
    - If both empty → item created with stockQty 0, avgCost 0 (current behavior).
-   - If both present → item created AND an `opening` StockMovement written, all in the
-     same per-row transaction (the existing CSV importer is already per-row
-     transactional — no architecture change, just an addition to the row's work).
-   - If only one is present → row-level validation error ("openingQty and
+   - If both present → item created AND an `opening` StockMovement written (qty =
+     openingStock, `costAtTime` = openingUnitCost), all in the same per-row transaction
+     (the existing CSV importer is already per-row transactional — no architecture
+     change, just an addition to the row's work).
+   - If only one is present → row-level validation error ("openingStock and
      openingUnitCost must be set together"), surfaced in the existing preview UI.
    - `openingUnitCost` is rupees-decimal at the boundary (matches existing CSV money
-     handling — converted via shared validator).
+     handling — converted via the shared `rupeesToPaisa` validator).
+   - **⚠️ BREAKING contract change to existing CSV import:** today `openingStock` ALONE
+     (no cost) is legal and produces the exact cost-less bug this spec exists to fix.
+     After 006c, `openingStock` and `openingUnitCost` must be set together or both
+     absent — `openingStock` alone is now a row-level error. This is intentional: it is
+     the guard that prevents the bug recurring via CSV. (Safe in practice: the real
+     ~200-item import hasn't happened yet, and it goes through this path fresh after a
+     clean wipe.)
    - The owner's real-world ~200-item import IS the primary motivator for this path.
 
 4. **Repair tool: owner-only "Set opening cost" for items already in the system.**
@@ -125,15 +147,26 @@ Everything else (UI, validation, owner-gating) is straightforward.
      earliest existing StockMovement.createdAt for this item, so the opening slots in
      as the FIRST event in the item's history), `note` (required for repairs — owner
      must explain why).
-   - Behavior: if an `opening` movement already exists for this item, **replace it**
-     (delete + create new with the same posting-order anchor). If not, create one with
-     a `createdAt` set to just before the earliest existing movement (so the engine
-     sees it as the first event). Then trigger a `recomputeItemCostByReplay` and return
-     the drift report to the owner, same shape as the existing recalculate-cost tool.
+   - **Behavior — all in ONE transaction (one session):**
+     1. Delete any existing `type: 'opening'` movement for this item (replace, not stack).
+     2. **Delete any legacy `type: 'adjustment'` movement noted `"opening stock"` for
+        this item** (the exact note the current `createItem` writes — see §10). This is
+        the critical step: without it, the new opening stacks on top of the legacy
+        cost-less adjustment and replay DOUBLE-COUNTS stock (e.g. 15 → 45) while only
+        appearing to fix avgCost.
+     3. Create the new `type: 'opening'` movement (`costAtTime` = corrected unit cost),
+        with `createdAt` set to just before the earliest *remaining* movement (or `now`
+        if none) so the engine sees it as the first event.
+     4. Run **`recomputeItemCostByReplay(itemId, { session })`** (the PURE function) and
+        persist the recomputed `avgCost` + `stockQty` to the Item — all inside this same
+        session. **Do NOT call the `recalculateItemCost` wrapper** — it opens its own
+        transaction; nesting it here is wrong. Reuse the pure replay function directly.
+     5. Return the drift report (before/after avgCost + stockQty, changed flag), same
+        shape as the existing recalculate-cost tool.
    - This is the cleanup path for the owner's already-broken test data, AND for any
      future "oops I entered cost = 0" mistakes. It's the only path in the entire
-     codebase that mutates an existing StockMovement, and it does so by delete+recreate,
-     not in-place edit.
+     codebase that deletes/replaces an existing StockMovement, and it does so by
+     delete+recreate, not in-place edit.
 
 **Out of scope:**
 - **Multi-line opening declarations** ("I have 15 at cost A and 5 at cost B in the back
@@ -160,23 +193,29 @@ Everything else (UI, validation, owner-gating) is straightforward.
 - **StockMovement.type enum** extended to include `opening`. Existing values
   (`purchase`, `sale`, `return`, `adjustment`, `reversal`) stay. The enum addition is
   the only schema change.
-- **StockMovement** for an `opening` row: `unitCost` is now meaningful (existing
-  `purchase` rows already have it; existing `sale`/`return`/`adjustment`/`reversal` rows
-  don't use it). No new fields needed — the existing shape covers it.
+- **StockMovement** for an `opening` row: the per-unit cost is stored in the existing
+  **`costAtTime`** field — the same field `purchase` rows use; `sale`/`return`/
+  `adjustment`/`reversal` rows leave it null. **There is no `unitCost` field on
+  StockMovement** (the model only has `costAtTime`). No new fields needed. The API/UI
+  input `openingUnitCost` is persisted to `costAtTime`.
 - **No new collection.** Opening is just another type of StockMovement.
 - **Item** unchanged. avgCost and stockQty are computed/updated as before; just one
   more movement type can move them.
-- **No indexes new.** Existing index on (itemId, createdAt) (assumed; verify in review)
-  is what replay walks; opening movements use the same one.
+- **No new indexes.** The existing `{ itemId: 1, createdAt: 1, _id: 1 }` index
+  (confirmed present on StockMovement) is what replay walks; opening movements use it.
 
 ## 6. Business rules
 - **Opening is a purchase-type event for costService replay.** The only logic change to
-  costService is: the set of types that trigger weighted-average recomputation grows
-  from `{purchase}` to `{purchase, opening}`. The math is identical (effectiveOld =
-  max(oldQty, 0) on both sides, scale + round-half-even per ADR-001). Verify against
-  the actual costService code in review: the recompute trigger should be a single
-  set/array, easy to extend by one value. If it's a switch or if/else, that's a small
-  refactor in this spec, not a hidden risk.
+  costService is: the recompute trigger grows from `{purchase}` to `{purchase, opening}`
+  — a `COST_BEARING` set the replay loop checks instead of the current single
+  `mv.type === "purchase"` comparison. The math is identical (`applyPurchaseToCost`
+  reused verbatim; effectiveOld = max(oldQty, 0); scale + round-half-even per ADR-001).
+  Cost is read from `mv.costAtTime` for both types. **The existing null/negative-cost
+  guard** (throws on a cost-bearing movement whose `costAtTime` is missing or negative)
+  **applies to `opening` too** — an opening with null/negative `costAtTime` is rejected
+  by replay, never silently treated as 0. **Update the costService doc-comment** (it
+  currently lists "adjustment (incl. opening stock)" among the non-cost-bearing,
+  qty-only types) to state that `opening` is now cost-bearing alongside `purchase`.
 - **Opening + Purchase + Reverse-purchase compose cleanly.** A real test case must
   verify: declare opening 15 @ Rs 200, then purchase 5 @ Rs 300, then reverse the
   purchase. After replay: avgCost = Rs 200 (the purchase is excluded by reversalRef,
@@ -188,24 +227,29 @@ Everything else (UI, validation, owner-gating) is straightforward.
   the earliest existing movement to ensure opening slots in as the FIRST event.
 - **Repair tool's "createdAt just before earliest existing movement"** rule:
   - If no existing movements: createdAt = now.
-  - If existing movements: createdAt = `min(existingMovements.createdAt) - 1ms`. Safe
-    because Mongo ObjectIds are monotonic at sub-millisecond resolution and the tiebreak
-    rule handles the rest. Verify no other movement could have been created in that 1ms
-    window for the same item (extremely unlikely in single-shop usage, impossible if
-    the repair is happening while the shop is closed).
-- **Repair tool always replaces** any existing `opening` movement for the same item
-  (delete old + create new in one transaction). There can only ever be **one opening
-  movement per item**, by construction. The replay engine should not need to handle
-  multiple openings — confirm by adding a uniqueness constraint:
-  `StockMovement.find({ itemId, type: 'opening' }).countDocuments() <= 1` invariant,
-  enforced in the repair service and asserted in tests.
-- **CSV path with openingQty + openingUnitCost** writes the opening movement in the
+  - If existing movements: createdAt = `min(existingMovements.createdAt) - 1ms`. This is
+    sound and needs no `postingOrder` column: Mongo `Date` is **millisecond**-resolution,
+    so subtracting a full 1 ms yields a strictly-smaller, distinct timestamp that sorts
+    first by the **primary** sort key (`createdAt`) — `_id` tiebreak never even applies.
+    Single-shop, single-millisecond contention for the same item is impossible. (Compute
+    `min` against the movements that REMAIN after the legacy-adjustment deletion below.)
+- **Repair tool always replaces the item's existing opening, in BOTH shapes** (one
+  transaction): delete any `type: 'opening'` movement AND any legacy `type: 'adjustment'`
+  movement noted `"opening stock"` for the item, THEN create the new `type: 'opening'`
+  movement. Deleting the legacy adjustment is mandatory — otherwise the new opening
+  stacks on top of it and replay double-counts stock (the bug this review caught; see
+  §10). There can only ever be **one opening movement per item** afterward, by
+  construction — assert `StockMovement.find({ itemId, type: 'opening' }).countDocuments()
+  === 1` in tests; the replay engine never handles multiple openings.
+- **CSV path with openingStock + openingUnitCost** writes the opening movement in the
   same per-row transaction as the Item create. Failure of either side rolls back both.
 - **Manual create with opening fields** does the same in one transaction.
-- **Validation**: `openingQty > 0` (positive Decimal), `openingUnitCost >= 0` (zero
+- **Validation**: opening qty > 0 (positive Decimal); opening unit cost >= 0 (zero
   allowed — sometimes things genuinely are free, e.g. gifted stock; warn but don't
-  block on zero). `openingQty` and `openingUnitCost` are required together or absent
-  together — never one without the other. Shared validator with CSV path.
+  block on zero). Qty and unit cost are **required together or absent together** — never
+  one without the other. One shared validator backs both the manual path (inputs
+  `openingQty` + `openingUnitCost`) and the CSV path (columns `openingStock` +
+  `openingUnitCost`) — no forked logic (ADR-001 discipline).
 - **Owner-only on the repair tool** (path #4), same gating as recalculate-cost and CSV
   import. The create-time opening (paths #2 and #3) is owner-only by virtue of being
   in the existing create flow which is already owner-gated.
@@ -218,15 +262,15 @@ Everything else (UI, validation, owner-gating) is straightforward.
   special-casing in saleService — it reads Item.avgCost at sale time, period.
 
 ## 7. Validation rules
-- `StockMovement.type = 'opening'`: qty > 0 (positive Decimal128); unitCost >= 0; date
-  present (defaults to today); createdBy required; note optional except in the repair
-  tool where note is REQUIRED (owner must explain the repair).
-- Manual create's opening fields: openingQty and openingUnitCost both required if
+- `StockMovement.type = 'opening'`: qty > 0 (positive Decimal128); `costAtTime` >= 0;
+  date present (defaults to today); createdBy required; note optional except in the
+  repair tool where note is REQUIRED (owner must explain the repair).
+- Manual create's opening fields: `openingQty` and `openingUnitCost` both required if
   either is set; both must validate per above; rejected with clear inline errors if
   partial.
-- CSV row: same pairing rule; row-level error in preview if only one column is filled
-  on a given row. Shared validator with manual path — no forked logic (ADR-001
-  discipline).
+- CSV row: same pairing rule on the `openingStock` + `openingUnitCost` columns —
+  row-level error in preview if only one is filled on a given row. Shared validator with
+  the manual path — no forked logic (ADR-001 discipline).
 - Repair tool: itemId must exist; unitCost >= 0; qty > 0; note required, max length
   same as other notes; date optional (computed to "just before earliest existing
   movement" if not supplied or if too late to make sense).
@@ -240,8 +284,9 @@ Everything else (UI, validation, owner-gating) is straightforward.
       at qty 0 / avgCost 0, no movement written.
 - [ ] CSV import with both opening columns: items land with correct stockQty + avgCost,
       one `opening` movement per row, no Purchase, no Supplier.
-- [ ] CSV import with only `openingQty` (no cost) or only `openingUnitCost` (no qty):
-      row-level error in preview, same UX shape as other invalid fields.
+- [ ] CSV import with only `openingStock` (no cost) or only `openingUnitCost` (no qty):
+      row-level error in preview, same UX shape as other invalid fields. (This is the
+      BREAKING contract change — `openingStock` alone was previously legal.)
 - [ ] CSV import with neither opening column: items land at qty 0 / avgCost 0
       (regression — existing import unaffected).
 - [ ] Repair tool on an item with no existing opening: creates one with createdAt
@@ -260,11 +305,26 @@ Everything else (UI, validation, owner-gating) is straightforward.
       report shows the correction.
 - [ ] **Replay engine treats opening identically to purchase for cost.** Test: an
       item with ONLY an opening movement (no purchases ever) has avgCost = the
-      opening's unitCost, exactly.
+      opening's `costAtTime`, exactly.
+- [ ] **Plain opening + purchase weighted-average (the basic composition).** Opening
+      15 @ Rs 200 + purchase 5 @ Rs 300 → avgCost = Rs 225 ((15×200 + 5×300)/20),
+      stockQty = 20. Proves opening averages WITH a purchase, not just alongside a reversal.
+- [ ] **Opening + sale + return stays qty-only after the opening.** Opening 15 @ Rs 200,
+      sell 5, return 2: avgCost remains Rs 200 throughout (sale/return never move cost),
+      stockQty = 12. Proves opening doesn't perturb the qty-only movement handling.
+- [ ] **Headline regression: legacy-adjustment repair (the critical catch).** Set the
+      item up the way TODAY's `createItem` does — a `type:'adjustment'` movement noted
+      `"opening stock"` for +15 (cost-less) AND item.stockQty 15 — then a purchase
+      +15 @ Rs 250 (so current avgCost is the wrong Rs 125). Run repair with
+      openingUnitCost = Rs 250, qty = 15. After repair: **stockQty = 30 (NOT 45)**,
+      avgCost = Rs 250 (opening 15@250 + purchase 15@250 average to 250), the legacy
+      adjustment is **deleted**, and **exactly one** `type:'opening'` movement exists.
+- [ ] **Repair idempotency.** Running the repair twice with the same inputs yields the
+      same final state — no second opening movement, no drift, no compounding stock.
 - [ ] **At most one opening movement per item, ever.** Invariant test: try to manually
       insert a second opening movement → rejected.
 - [ ] An item with an opening, followed by sales, snapshots costAtTime correctly on
-      each sale (the opening's unitCost flows through as the per-line cost, profit
+      each sale (the opening's `costAtTime` flows through as the per-line cost, profit
       computes correctly).
 - [ ] No supplier balance is touched by any opening flow (an explicit assertion in
       tests).
@@ -274,66 +334,83 @@ Everything else (UI, validation, owner-gating) is straightforward.
 - [ ] Recalculate-cost on an item with an opening (and possibly purchases/reversals)
       reports zero drift after a clean replay.
 - [ ] Owner-only gating on the repair tool endpoint and UI.
-- [ ] CSV preview displays the openingQty and openingUnitCost columns in the existing
-      preview table; errors render inline.
+- [ ] CSV preview displays the `openingStock` and `openingUnitCost` columns in the
+      existing preview table; errors render inline.
 
-## 9. Open questions (resolve in review)
-1. **Manual create UI placement of the opening fields.** Inline section in the existing
-   Add Item modal, or a separate "Add with opening stock" toggle button? Leaning:
-   inline section, collapsed by default with a "+ Declare opening stock" link to
-   expand. Keeps the simple "add new item" flow uncluttered for everyday use while
-   making the opening path one click away.
-2. **Repair tool placement.** Inside the Edit Item modal as a red-tinted section, or
-   as a separate "Repair item cost" page accessible from the owner-only section of
-   inventory? Leaning: inside Edit Item, like the existing recalculate-cost button —
-   keeps repair operations co-located with the item they affect.
-3. **Should the CSV columns be REQUIRED or remain optional?** Spec says optional
-   (matches current per-field tolerance in the CSV importer). Confirm — required would
-   force the owner to know cost for every item including genuinely-free ones, which
-   would be wrong.
-4. **The "createdAt = earliest - 1ms" trick** for slotting an opening before existing
-   movements. Verify with Claude Code against the actual replay code: is `createdAt`
-   asc + `_id` asc tiebreak truly stable enough at sub-ms? If not, the alternative is
-   an explicit `postingOrder` integer column on StockMovement (bigger change). Leaning:
-   the 1ms trick is fine; if review finds a concern, fall back to an explicit ordering
-   field.
-5. **Should an item's edit form show its current opening (if any)?** Read-only
-   "Opening: 15 @ Rs 200 on 2026-01-12" line in the Edit Item modal as context, so the
-   owner can see what's there before repairing? Leaning: yes, useful and trivial.
-6. **Reverse engineering the existing test data.** The owner has some items in the
-   live DB with corrupt avgCost from the cost=0-then-purchase pattern. Recommend the
-   first thing post-ship: a hand-walked repair of those items using the new tool,
-   to validate the repair path end-to-end on real corruption. Confirm.
+## 9. Decisions (resolved in review)
+1. **Manual create UI** → inline section in the Add Item modal, **collapsed by default**
+   behind a "+ Declare opening stock" link. Keeps the everyday add flow uncluttered. ✅
+2. **Repair tool placement** → **inside Edit Item**, a red-tinted owner-only section,
+   co-located with the existing recalculate-cost button. ✅
+3. **CSV columns optional** → optional, with the **pairing rule enforced** (`openingStock`
+   + `openingUnitCost` together or both absent). Required would force a cost on
+   genuinely-free items. ✅
+4. **Ordering** → the **`createdAt = min(remaining) − 1ms` trick**, no `postingOrder`
+   column. Mongo `Date` is ms-resolution; a full-1ms subtraction is strictly distinct and
+   sorts first by the primary key. (postingOrder hedge dropped.) ✅
+5. **Show current opening in Edit Item** → **yes**, a read-only "Opening: 15 @ Rs 200 on
+   …" line — and it must surface **both** `type:'opening'` AND legacy
+   `type:'adjustment'`-noted-`"opening stock"` movements, so the items that most need
+   repair visibly show their (broken) opening instead of appearing empty. ✅
+6. **Post-ship repair walk** → **yes** — hand-walk a repair of any live-DB items with the
+   cost=0-then-purchase pattern before the real 200-item import. This is exactly where
+   the legacy-adjustment double-count (§10) would have bitten, so it validates the fix on
+   real corruption. ✅
 
 ## 10. Notes / decisions
+- **🔴 The single most important reason this spec needed careful review — the legacy
+  adjustment double-count.** Today's `createItem` writes opening stock as a
+  `type:'adjustment'` movement noted `"opening stock"` (cost-less) *and* sets stockQty.
+  A repair tool that only replaced `type:'opening'` movements would stack a new opening
+  on top of that legacy adjustment → replay double-counts stock (e.g. 15 → 45) while only
+  appearing to fix avgCost. It would pass every headline test (which build the bug with
+  the NEW shape) and silently corrupt real stock on the owner's first repair. Fix is
+  twofold: (a) the repair transaction deletes the legacy `adjustment`-`"opening stock"`
+  movement before creating the new opening (§4.4); (b) `createItem` stops emitting the
+  legacy shape and emits `type:'opening'` going forward (§4.2). A dedicated headline
+  regression (§8) sets the data up the way the OLD code actually did it.
 - **ADR-013 to write alongside this spec:** "Opening stock is a first-class
   inventory-declaration concept, not a kind of purchase." Frame in the 009/010/011/012
   voice: the rule, the rationale (no supplier debt, no cash impact, immutable single-
   per-item, repair-only via delete+replace), and the extension point (if a future
   feature ever needs "batch openings with different costs per batch," it would be a
-  new spec, not a tweak to this one).
+  new spec, not a tweak to this one). **Carve-out:** the persisted opening cost lives in
+  `StockMovement.costAtTime`, the same field purchases use — there is no separate
+  opening-cost field. The conceptual distinction (opening vs purchase) is the `type`
+  enum value; cost *storage* is unified.
 - **Build order:**
-  1. costService: extend the purchase-type-events set to include 'opening' (one-line
-     change), with a regression test that an item with only an opening has avgCost =
-     unitCost. PAUSE on green — this is the load-bearing change, verify replay
+  1. costService + StockMovement enum (ISOLATED, PAUSE on green): add `opening` to the
+     enum; extend the recompute trigger to a `COST_BEARING = {purchase, opening}` set;
+     extend the null/negative-`costAtTime` guard to opening; update the costService
+     doc-comment. Tests: opening-only → avgCost = costAtTime; opening + purchase
+     weighted-average; opening + reverse-purchase; opening with null costAtTime rejected;
+     existing purchase tests still pass. This is the load-bearing change — verify replay
      correctness in isolation before anything else.
-  2. StockMovement schema enum update + tests for the new type.
-  3. Manual create path: extend createItem service + Zod to accept opening fields,
-     write the item + opening movement in one transaction. Tests.
-  4. CSV path: add openingQty + openingUnitCost columns to HEADERS + normalizeRow +
-     row-level pair validation. Tests including the "only one column filled" error.
-  5. Repair service: the delete-old + create-new + replay flow. Tests including the
-     headline regression (cost=0-then-purchase fix).
-  6. Routes + HTTP smoke tests. PAUSE on green.
-  7. Frontend: opening fields in Add Item modal (collapsed-by-default section), repair
+  2. Manual create path: change `createItem` to emit `type:'opening'` (with costAtTime)
+     when opening fields are provided (NOT the legacy adjustment) + Zod for the paired
+     fields; item + opening movement in one transaction. Tests.
+  3. CSV path: add the `openingUnitCost` column (reuse existing `openingStock` for qty)
+     to HEADERS + normalizeRow + row-level pair validation. Tests including the "only one
+     column filled" error and the regression that neither column = unchanged behavior.
+  4. Repair service: ONE transaction — delete existing `opening` AND legacy
+     `adjustment`-`"opening stock"` movements, create the new `opening`, run the PURE
+     `recomputeItemCostByReplay(itemId, {session})` (NOT the recalculate-cost wrapper),
+     persist. Tests including the headline legacy-adjustment regression + idempotency.
+  5. Routes + HTTP smoke tests (opening on create, CSV, repair endpoint). PAUSE on green.
+  6. Frontend: opening fields in Add Item modal (collapsed-by-default section), repair
      section in Edit Item modal (red-tinted, owner-only, with the read-only "current
-     opening" display per §9.5), CSV preview rendering for the new columns.
-  8. Browser verification end-to-end: create a new item with opening, run a sale,
-     check profit is correct. Create an item with cost=0 + a purchase, deliberately
-     reproduce the bug, run repair, check it's fixed.
+     opening" display per §9.5 surfacing both shapes), CSV preview rendering for the new
+     column.
+  7. Browser verification end-to-end: create a new item with opening, run a sale,
+     check profit is correct. Reproduce the legacy bug (cost=0 adjustment + a purchase),
+     run repair, check stock AND avgCost are both correct.
 - After ship: ADR-013 written, PROJECT_PLAN + CLAUDE.md updated to mark 006c shipped.
   Then a deliberate **owner-driven repair walk** of any items in the current live DB
   with the cost=0-then-purchase pattern, before the real 200-item CSV import. This
   closes the loop end-to-end.
 - **After 006c, the next phase is genuinely Phase 7 (AI layer)** — no more polish
   slices unless real-shop usage surfaces another foundational gap.
+
+  
+
+  

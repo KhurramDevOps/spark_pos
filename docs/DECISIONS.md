@@ -15,6 +15,41 @@ Format:
 
 ---
 
+## ADR-013 — Opening stock is a first-class inventory declaration, not a kind of purchase
+- Date: 2026-06-24
+- Status: accepted
+- Context: The shop has ~200 items it already owns, paid for long ago, with no receipts but
+  known per-unit costs. The app only let stock enter via a Purchase, so the workaround was
+  entering items at cost = 0 and "fixing later" — which corrupts avgCost via weighted-average
+  dilution (15 @ 0 then a real 15 @ 250 → avgCost 125, half the truth) and lies in every
+  downstream profit number. Forcing existing inventory through Purchase also invents fake
+  supplier debt and fake dates. (Spec 006c.)
+- Decision:
+  - **Declaring existing inventory is its own operation, modeled as a new
+    `StockMovement.type = 'opening'`** — not a Purchase. Opening creates NO Supplier, moves no
+    `Supplier.balance`, appears in no supplier ledger, and has no cash/daily-close impact. It
+    is a pure inventory + cost declaration.
+  - **For avgCost replay, `opening` is cost-bearing, treated identically to `purchase`.** The
+    replay's recompute trigger is the set `{purchase, opening}`; the math (`applyPurchaseToCost`)
+    is reused verbatim. An opening with a missing/negative cost is rejected by the same guard
+    purchases use — never silently treated as 0.
+  - **Cost storage is unified: the persisted opening cost lives in `StockMovement.costAtTime`,
+    the same field purchases use.** There is no separate opening-cost field. The conceptual
+    distinction (opening vs purchase) is the `type` enum value alone.
+  - **Exactly one opening per item, immutable, repair-only via delete+replace.** The owner-only
+    repair tool deletes any prior opening AND any legacy `adjustment`-noted-`"opening stock"`
+    movement (the cost-less shape the old `createItem` produced), creates the corrected opening
+    ordered before all remaining movements (`createdAt = min − 1ms`), and re-runs the pure
+    replay — all in one transaction.
+  - **EXTENSION POINT (future-me):** if a real need arises for "batch openings" (different
+    costs per batch of the same item), that is a NEW spec (a multi-line opening or a genuine
+    Purchase pattern), not a tweak here. One opening, one qty, one cost per item stands.
+- Consequences: existing inventory enters with correct avgCost from day one, no fake suppliers
+  or debt; the replay engine gains one cost-bearing type and no new cost code path; corrupt
+  legacy data is fixable in place. The one subtlety that demanded careful review — a repair
+  stacking a new opening on top of the legacy cost-less adjustment and double-counting stock —
+  is handled by deleting the legacy shape inside the repair transaction.
+
 ## ADR-012 — Binary assets live outside MongoDB, behind a storage-driver interface
 - Date: 2026-06-23
 - Status: accepted
