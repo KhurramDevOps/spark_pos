@@ -125,7 +125,7 @@ export async function aggregateItemPerformance({ start, end }) {
   }
 
   const ids = [...new Set([...acc.keys(), ...soldItemIds])];
-  const items = await Item.find({ _id: { $in: ids } }).select("name sku stockQty").lean();
+  const items = await Item.find({ _id: { $in: ids } }).select("name sku stockQty image").lean();
   const meta = new Map(items.map((i) => [String(i._id), i]));
 
   const rows = [...acc.entries()].map(([id, v]) => {
@@ -134,6 +134,7 @@ export async function aggregateItemPerformance({ start, end }) {
       itemId: id,
       name: m?.name ?? "(deleted item)",
       sku: m?.sku ?? "",
+      image: m?.image ?? null, // thumbnail in Reports (spec 006b)
       qtySold: v.qty,
       revenue: v.revenue,
       grossProfit: v.profit,

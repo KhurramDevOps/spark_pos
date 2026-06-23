@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { formatPaisa, decimalText } from "../../lib/format";
+import ItemImage from "../../components/ItemImage";
 
 const SORTS = [
   { key: "qtySold", label: "Qty sold" },
@@ -55,7 +56,12 @@ export default function ItemPerformance({ items, deadStock }) {
             <tbody className="divide-y divide-gray-100">
               {rows.map((r) => (
                 <tr key={r.itemId}>
-                  <td className="py-1.5 text-gray-900">{r.name}</td>
+                  <td className="py-1.5 text-gray-900">
+                    <span className="flex items-center gap-2">
+                      <ItemImage image={r.image} size={32} alt={r.name} />
+                      <span>{r.name}</span>
+                    </span>
+                  </td>
                   <td className="py-1.5 text-gray-500">{r.sku}</td>
                   <td className="py-1.5 text-right tabular-nums">{decimalText(r.qtySold)}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatPaisa(r.revenue)}</td>
