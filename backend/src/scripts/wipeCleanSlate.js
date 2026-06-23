@@ -18,6 +18,7 @@ try {
     "supplierpayments", "customerpayments",
     "supplierreturns", "customerreturns",
     "stockmovements", "importlogs",
+    "expenses", "draweradjustments", "daycloses", // Phase 5 (spec 005)
   ];
   const KEEP = ["categories", "counters", "settings"];
 

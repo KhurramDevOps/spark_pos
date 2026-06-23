@@ -241,8 +241,19 @@ stock-only, no replay). *This is the heart of the app.*
 **Phase 4 — Ledgers**
 Customer & supplier balances, part-payments, statements.
 
-**Phase 5 — Expenses & accounting**
-Expense entry, daily close.
+**Phase 5 — Expenses & daily close** — ✅ **SHIPPED** (spec 005)
+Flat Expense + DrawerAdjustment collections (no ledger, no balance) and a tiny DayClose row
+that persists the carried-forward float. Read-mostly daily-close screen: the §6 cash-math table
+(starting cash → cash sales, customer/supplier payments, drawer in/out, refunds, expenses →
+expected cash), actual-counted-vs-expected difference, gross-profit/expenses/net section, stale
++ un-closed-days banners, and per-line click-to-drill-down into the underlying transactions.
+Aggregation buckets by `createdAt` in Asia/Karachi (ADR-010); all payments counted as cash
+until a non-cash path ships (ADR-009). *Verified end-to-end in the browser* — recorded
+expenses + drawer adjustments, counted the drawer, closed the day, confirmed the float carried
+forward to the next day, and confirmed drill-downs reconcile to each line total. **Headline
+regression test** (`dailyClose.test.js`): closing a day then retroactively voiding that day's
+sale flips the `stale` flag but leaves `actualCash` — and therefore the next day's starting
+cash — unchanged (carry-forward is pinned to physically-counted cash, not recomputed expected).
 
 **Phase 6 — Reports & analytics**
 All reports + graphs. Low-stock notifications (simple scheduled check).

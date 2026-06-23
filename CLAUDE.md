@@ -12,9 +12,10 @@ Optimise for **correctness and ease of use, not scale**.
 Read `docs/PROJECT_PLAN.md` for the full product spec, domain model, and roadmap. Read the
 active spec in `docs/specs/` before implementing a feature.
 
-**Status:** Phases 1–3 shipped (specs 001, 002, 003, 003b, 004, 004b). Purchase side and sell
-side are both fully recoverable in-app (reversals/voids/returns). **Next: Phase 5 — Expenses &
-daily close.**
+**Status:** Phases 1–3 + 5 shipped (specs 001, 002, 003, 003b, 004, 004b, 005). Purchase side
+and sell side are both fully recoverable in-app (reversals/voids/returns); expenses, drawer
+adjustments, and a daily-close screen (cash math + gross profit/net + per-line drill-downs)
+are live. **Next: Phase 6 — Reports & analytics.**
 
 ## Golden rules
 
