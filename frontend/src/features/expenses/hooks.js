@@ -14,6 +14,14 @@ export function useDailyClose(date) {
   });
 }
 
+export function useDailyCloseLine(date, line, enabled) {
+  return useQuery({
+    queryKey: ["dailyCloseLine", date ?? "today", line],
+    queryFn: () => api.getDailyCloseLine(date, line),
+    enabled: Boolean(enabled),
+  });
+}
+
 export function useExpenses() {
   return useQuery({
     queryKey: ["expenses"],

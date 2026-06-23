@@ -2,24 +2,61 @@ import { useState } from "react";
 import { Field, TextInput, Button, ErrorText } from "../../components/ui";
 import { saveDayCloseSchema } from "@shared/validation/expense.js";
 import { formatPaisa, rupeesToPaisa } from "../../lib/format";
-import { useDailyClose, useSaveDailyClose } from "./hooks";
+import { useDailyClose, useDailyCloseLine, useSaveDailyClose } from "./hooks";
 
 const todayLabel = () => new Date().toLocaleDateString("en-CA"); // YYYY-MM-DD, local
 
-/** One line of the cash-math table. `sign` is "+", "−", or "" (totals). */
-function MathRow({ sign, label, paisa, bold, divider }) {
+const fmtTime = (at) =>
+  at ? new Date(at).toLocaleTimeString("en-PK", { hour: "2-digit", minute: "2-digit" }) : "";
+
+/** Expanded list of the transactions behind one cash-math line (drill-down). */
+function LineDetail({ date, line }) {
+  const { data: rows, isLoading, isError, error } = useDailyCloseLine(date, line, true);
+  if (isLoading) return <p className="py-1 pl-4 text-xs text-gray-400">Loading…</p>;
+  if (isError) return <p className="py-1 pl-4 text-xs text-red-600">{error.message}</p>;
+  if (!rows?.length) return <p className="py-1 pl-4 text-xs text-gray-400">No transactions.</p>;
   return (
-    <div
-      className={`flex items-baseline justify-between py-1.5 text-sm ${
-        divider ? "border-t border-gray-200 mt-1 pt-2" : ""
-      } ${bold ? "font-semibold text-gray-900" : "text-gray-700"}`}
-    >
-      <span>
-        {sign && <span className="mr-1 inline-block w-3 text-gray-400">{sign}</span>}
-        {label}
-      </span>
-      <span className="tabular-nums">{formatPaisa(paisa)}</span>
+    <div className="mb-1 ml-4 border-l border-gray-200 pl-3">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-baseline justify-between py-0.5 text-xs text-gray-500">
+          <span>
+            {r.label} {r.at && <span className="text-gray-300">· {fmtTime(r.at)}</span>}
+          </span>
+          <span className="tabular-nums">{formatPaisa(r.amount)}</span>
+        </div>
+      ))}
     </div>
+  );
+}
+
+/**
+ * One line of the cash-math table. `sign` is "+", "−", or "" (totals). Pass
+ * `line` + `date` to make it click-to-expand into its underlying transactions.
+ */
+function MathRow({ sign, label, paisa, bold, divider, line, date }) {
+  const [open, setOpen] = useState(false);
+  const drillable = Boolean(line);
+  return (
+    <>
+      <button
+        type="button"
+        disabled={!drillable}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-baseline justify-between py-1.5 text-left text-sm ${
+          divider ? "mt-1 border-t border-gray-200 pt-2" : ""
+        } ${bold ? "font-semibold text-gray-900" : "text-gray-700"} ${
+          drillable ? "hover:text-indigo-600" : "cursor-default"
+        }`}
+      >
+        <span>
+          {sign && <span className="mr-1 inline-block w-3 text-gray-400">{sign}</span>}
+          {label}
+          {drillable && <span className="ml-1 text-xs text-gray-300">{open ? "▾" : "▸"}</span>}
+        </span>
+        <span className="tabular-nums">{formatPaisa(paisa)}</span>
+      </button>
+      {open && drillable && <LineDetail date={date} line={line} />}
+    </>
   );
 }
 
@@ -104,13 +141,13 @@ export default function DailyClose() {
         <section className="rounded-lg border border-gray-200 bg-white p-4">
           <h2 className="mb-2 text-sm font-semibold text-gray-900">Cash math</h2>
           <MathRow label="Starting cash in drawer" paisa={data.startingCash} />
-          <MathRow sign="+" label="Cash sales" paisa={data.cashSales} />
-          <MathRow sign="+" label="Customer payments received" paisa={data.customerPayments} />
-          <MathRow sign="+" label="Drawer adjustments IN" paisa={data.drawerIn} />
-          <MathRow sign="−" label="Cash refunds" paisa={data.cashRefunds} />
-          <MathRow sign="−" label="Supplier payments" paisa={data.supplierPayments} />
-          <MathRow sign="−" label="Expenses" paisa={data.expenses} />
-          <MathRow sign="−" label="Drawer adjustments OUT" paisa={data.drawerOut} />
+          <MathRow sign="+" label="Cash sales" paisa={data.cashSales} line="cashSales" date={date} />
+          <MathRow sign="+" label="Customer payments received" paisa={data.customerPayments} line="customerPayments" date={date} />
+          <MathRow sign="+" label="Drawer adjustments IN" paisa={data.drawerIn} line="drawerIn" date={date} />
+          <MathRow sign="−" label="Cash refunds" paisa={data.cashRefunds} line="cashRefunds" date={date} />
+          <MathRow sign="−" label="Supplier payments" paisa={data.supplierPayments} line="supplierPayments" date={date} />
+          <MathRow sign="−" label="Expenses" paisa={data.expenses} line="expenses" date={date} />
+          <MathRow sign="−" label="Drawer adjustments OUT" paisa={data.drawerOut} line="drawerOut" date={date} />
           <MathRow label="Expected cash in drawer" paisa={data.expectedCash} bold divider />
 
           <div className="mt-4 space-y-3">

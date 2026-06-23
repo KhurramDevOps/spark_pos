@@ -78,6 +78,48 @@ export async function aggregateCashFlows({ start, end }) {
   return { cashSales, customerPayments, supplierPayments, cashRefunds, expenses, drawerIn, drawerOut, grossProfit };
 }
 
+/**
+ * Drill-down: the individual transactions that summed to one cash-math line for a
+ * Karachi day. Same match conditions as aggregateCashFlows, so the rows always
+ * reconcile to the line total the owner clicked. Returns {amount, label, at}[].
+ */
+export async function getLineDetail(dateInput, line) {
+  const { start, end } = resolveKarachiDay(dateInput);
+  const range = inRange(start, end);
+  const row = (amount, label, at) => ({ amount: decimalToString(amount), label, at });
+
+  switch (line) {
+    case "cashSales": {
+      const docs = await Sale.find({ paymentType: "cash", voided: false, ...range }).select("total createdAt").lean();
+      return docs.map((d) => row(d.total, "Sale", d.createdAt));
+    }
+    case "customerPayments": {
+      const docs = await CustomerPayment.find(range).populate("customerId", "name").select("amount createdAt customerId").lean();
+      return docs.map((d) => row(d.amount, d.customerId?.name ?? "Customer payment", d.createdAt));
+    }
+    case "supplierPayments": {
+      const docs = await SupplierPayment.find(range).populate("supplierId", "name").select("amount createdAt supplierId").lean();
+      return docs.map((d) => row(d.amount, d.supplierId?.name ?? "Supplier payment", d.createdAt));
+    }
+    case "cashRefunds": {
+      const docs = await CustomerReturn.find({ refundMethod: "cash", ...range }).select("total createdAt").lean();
+      return docs.map((d) => row(d.total, "Cash refund", d.createdAt));
+    }
+    case "expenses": {
+      const docs = await Expense.find(range).select("amount category note createdAt").lean();
+      return docs.map((d) => row(d.amount, d.note ? `${d.category} — ${d.note}` : d.category, d.createdAt));
+    }
+    case "drawerIn":
+    case "drawerOut": {
+      const docs = await DrawerAdjustment.find({ direction: line === "drawerIn" ? "in" : "out", ...range })
+        .select("amount note createdAt").lean();
+      return docs.map((d) => row(d.amount, d.note || "Drawer adjustment", d.createdAt));
+    }
+    default:
+      throw httpError(`unknown line "${line}"`, 400);
+  }
+}
+
 /** Expected cash = starting + cashSales + customerPayments + drawerIn − cashRefunds − supplierPayments − expenses − drawerOut. */
 function computeExpected(startingCash, f) {
   let v = startingCash;

@@ -7,6 +7,7 @@ import { saveDayCloseSchema } from "../../../shared/validation/expense.js";
 const router = Router();
 
 router.get("/", requireOwner, dailyClose.get);
+router.get("/lines", requireOwner, dailyClose.lineDetail);
 router.post("/", requireOwner, validate(saveDayCloseSchema), dailyClose.save);
 
 export default router;

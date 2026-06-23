@@ -1,4 +1,4 @@
-import { getDayClose, saveDayClose } from "../services/dailyCloseService.js";
+import { getDayClose, saveDayClose, getLineDetail } from "../services/dailyCloseService.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -16,4 +16,9 @@ export const save = wrap(async (req, res) => {
     { userId: req.userId }
   );
   res.json(doc);
+});
+
+export const lineDetail = wrap(async (req, res) => {
+  // Drill-down for one cash-math line: ?date=YYYY-MM-DD&line=cashSales
+  res.json(await getLineDetail(req.query.date || undefined, req.query.line));
 });

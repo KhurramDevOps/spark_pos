@@ -26,3 +26,7 @@ export const getDailyClose = (date) =>
   apiClient.get(`/daily-close${date ? `?date=${date}` : ""}`);
 // body: { date('YYYY-MM-DD'), actualCash(rupees), note? }
 export const saveDailyClose = (body) => apiClient.post("/daily-close", body);
+
+// Drill-down: the transactions behind one cash-math line for a Karachi day.
+export const getDailyCloseLine = (date, line) =>
+  apiClient.get(`/daily-close/lines?line=${line}${date ? `&date=${date}` : ""}`);
