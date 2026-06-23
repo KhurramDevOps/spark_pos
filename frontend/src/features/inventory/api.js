@@ -2,11 +2,12 @@ import { apiClient } from "../../lib/apiClient";
 
 // ---- Items ----------------------------------------------------------------
 
-export function fetchItems({ search, categoryId, active, page, limit }) {
+export function fetchItems({ search, categoryId, active, noImage, page, limit }) {
   const params = new URLSearchParams();
   if (search) params.set("search", search);
   if (categoryId) params.set("categoryId", categoryId);
   if (active) params.set("active", active); // "true" | "false" | "all"
+  if (noImage) params.set("noImage", "true");
   if (page) params.set("page", String(page));
   if (limit) params.set("limit", String(limit));
   const qs = params.toString();

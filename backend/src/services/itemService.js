@@ -275,10 +275,12 @@ function escapeRegex(s) {
  * optional category / active filters.
  * @param {object} opts - { search, categoryId, active (bool|undefined=all), page, limit }
  */
-export async function listItems({ search, categoryId, active, page = 1, limit = 20 } = {}) {
+export async function listItems({ search, categoryId, active, noImage, page = 1, limit = 20 } = {}) {
   const query = {};
   if (typeof active === "boolean") query.isActive = active;
   if (categoryId) query.categoryId = categoryId;
+  // Items with no image (spec 006b) — null OR missing both match `image: null`.
+  if (noImage) query.image = null;
   if (search && search.trim()) {
     const rx = new RegExp(escapeRegex(search.trim()), "i");
     query.$or = [{ name: rx }, { sku: rx }];

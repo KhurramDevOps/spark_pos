@@ -22,6 +22,7 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [active, setActive] = useState("true");
+  const [noImage, setNoImage] = useState(false);
   const [page, setPage] = useState(1);
 
   // Debounce the search box; resetting to page 1 happens where each filter
@@ -38,6 +39,7 @@ export default function InventoryPage() {
     search,
     categoryId,
     active,
+    noImage,
     page,
     limit: LIMIT,
   });
@@ -119,6 +121,17 @@ export default function InventoryPage() {
             <option value="all">All</option>
           </Select>
         </div>
+        <button
+          type="button"
+          onClick={() => { setNoImage((v) => !v); setPage(1); }}
+          className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
+            noImage
+              ? "border-indigo-600 bg-indigo-50 text-indigo-700"
+              : "border-gray-200 text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          Without image
+        </button>
       </div>
 
       {rowError && <div className="mb-3"><ErrorText>{rowError}</ErrorText></div>}

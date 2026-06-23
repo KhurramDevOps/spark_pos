@@ -33,7 +33,7 @@ export const negativeStock = wrap(async (_req, res) => {
 });
 
 export const list = wrap(async (req, res) => {
-  const { search, categoryId, active, page, limit } = req.query;
+  const { search, categoryId, active, noImage, page, limit } = req.query;
   // active: "true" | "false" | "all"/absent. Absent defaults to active-only.
   let activeFilter;
   if (active === "true") activeFilter = true;
@@ -45,6 +45,7 @@ export const list = wrap(async (req, res) => {
     search,
     categoryId: categoryId || undefined,
     active: activeFilter,
+    noImage: noImage === "true",
     page,
     limit,
   });
