@@ -41,6 +41,10 @@ function useInvalidatingMutation(mutationFn, { categories = false } = {}) {
 export const useCreateItem = () => useInvalidatingMutation((body) => api.createItem(body));
 export const useUpdateItem = () =>
   useInvalidatingMutation(({ id, body }) => api.updateItem(id, body));
+/** Image upload/remove (spec 006b) — refresh the list so thumbnails update. */
+export const useUploadItemImage = () =>
+  useInvalidatingMutation(({ id, file }) => api.uploadItemImage(id, file));
+export const useDeleteItemImage = () => useInvalidatingMutation((id) => api.deleteItemImage(id));
 export const useAdjustStock = () =>
   useInvalidatingMutation(({ id, body }) => api.adjustStock(id, body));
 export const useDeactivateItem = () => useInvalidatingMutation((id) => api.deactivateItem(id));

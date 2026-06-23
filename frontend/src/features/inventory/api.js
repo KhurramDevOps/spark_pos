@@ -15,6 +15,21 @@ export function fetchItems({ search, categoryId, active, page, limit }) {
 
 export const createItem = (body) => apiClient.post("/items", body);
 export const updateItem = (id, body) => apiClient.patch(`/items/${id}`, body);
+
+// ---- Item image (spec 006b) ----------------------------------------------
+
+// Multipart upload — raw fetch so the browser sets the multipart boundary
+// (apiClient forces application/json, which would break the upload).
+export async function uploadItemImage(id, file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`/api/items/${id}/image`, { method: "POST", body: fd });
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!res.ok) throw new Error(data?.error || `Upload failed (${res.status})`);
+  return data;
+}
+export const deleteItemImage = (id) => apiClient.del(`/items/${id}/image`);
 export const adjustStock = (id, body) => apiClient.post(`/items/${id}/adjust`, body);
 export const deactivateItem = (id) => apiClient.post(`/items/${id}/deactivate`, {});
 export const reactivateItem = (id) => apiClient.post(`/items/${id}/reactivate`, {});

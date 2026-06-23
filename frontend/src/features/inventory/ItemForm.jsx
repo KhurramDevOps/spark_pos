@@ -3,6 +3,7 @@ import { Modal, Field, TextInput, Select, Button, ErrorText } from "../../compon
 import { rupeesToPaisa, paisaToRupeesInput } from "../../lib/format";
 import { BASE_UNITS, createItemSchema, updateItemSchema } from "@shared/validation/item.js";
 import { useCreateItem, useUpdateItem } from "./hooks";
+import ImageEditor from "./ImageEditor";
 
 export default function ItemForm({ item, categories, onClose }) {
   const isEdit = Boolean(item);
@@ -20,6 +21,7 @@ export default function ItemForm({ item, categories, onClose }) {
     notes: item?.notes ?? "",
     sku: item?.sku ?? "",
     openingQty: "0",
+    imageUrl: "", // create-mode only; edit-mode image is handled by ImageEditor
   }));
   const [errors, setErrors] = useState({});
   const [serverError, setServerError] = useState("");
@@ -45,7 +47,11 @@ export default function ItemForm({ item, categories, onClose }) {
       form.wholesalePrice.trim() === "" ? (isEdit ? null : undefined) : rupeesToPaisa(form.wholesalePrice);
     payload.notes = form.notes.trim() === "" ? (isEdit ? null : undefined) : form.notes.trim();
     if (form.sku.trim()) payload.sku = form.sku.trim();
-    if (!isEdit) payload.openingQty = form.openingQty.trim() || "0";
+    if (!isEdit) {
+      payload.openingQty = form.openingQty.trim() || "0";
+      // Create-mode image is URL-only (uploads need an existing item id).
+      if (form.imageUrl.trim()) payload.image = { kind: "url", ref: form.imageUrl.trim() };
+    }
 
     // Drop undefined keys so optional fields validate cleanly.
     Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
@@ -155,6 +161,19 @@ export default function ItemForm({ item, categories, onClose }) {
 
         <Field label="Notes" error={errors.notes}>
           <TextInput value={form.notes} onChange={set("notes")} />
+        </Field>
+
+        <Field label="Image" error={errors.image}>
+          {isEdit ? (
+            <ImageEditor item={item} />
+          ) : (
+            <>
+              <TextInput value={form.imageUrl} onChange={set("imageUrl")} placeholder="Paste an image URL (https://…)" />
+              <p className="mt-1 text-xs text-gray-400">
+                Uploading from your computer becomes available once the item is created.
+              </p>
+            </>
+          )}
         </Field>
       </form>
     </Modal>
