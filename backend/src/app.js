@@ -10,6 +10,7 @@ import customerRoutes from "./routes/customerRoutes.js";
 import expenseRoutes from "./routes/expenseRoutes.js";
 import drawerAdjustmentRoutes from "./routes/drawerAdjustmentRoutes.js";
 import dailyCloseRoutes from "./routes/dailyCloseRoutes.js";
+import reportRoutes from "./routes/reportsRoutes.js";
 import { currentUser } from "./middleware/currentUser.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -37,6 +38,7 @@ export function createApp() {
   app.use("/api/expenses", expenseRoutes);
   app.use("/api/drawer-adjustments", drawerAdjustmentRoutes);
   app.use("/api/daily-close", dailyCloseRoutes);
+  app.use("/api/reports", reportRoutes);
 
   app.use(notFound);
   app.use(errorHandler);
