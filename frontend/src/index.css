@@ -4,6 +4,19 @@
   color-scheme: light;
 }
 
+/* Item image hover-preview fade-in (spec 006b). */
+@keyframes itemImageFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.item-image-preview {
+  animation: itemImageFade 250ms ease-out;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;

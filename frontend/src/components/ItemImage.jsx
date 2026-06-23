@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 // Build the <img src> for an item image (spec 006b). Uploads are served from the
 // local static route with a ?v=updatedAt cache-bust (so replacing an image shows
@@ -40,6 +40,27 @@ function Placeholder({ size, className }) {
 export default function ItemImage({ image, size = 48, hover = false, previewSize = 280, alt = "", className = "" }) {
   const src = imageSrc(image);
   const [failed, setFailed] = useState(false);
+  const [preview, setPreview] = useState(null); // { top, left } | null
+
+  // Position a viewport-fixed preview next to the thumbnail. Fixed positioning
+  // escapes the table's stacking/overflow entirely (a pure-CSS absolute preview
+  // inside a <td> won't reliably paint above sibling rows). Flips to the left
+  // when there isn't room on the right; clamps vertically to the viewport.
+  const showPreview = useCallback(
+    (e) => {
+      const r = e.currentTarget.getBoundingClientRect();
+      const gap = 8;
+      let left = r.right + gap;
+      if (left + previewSize + gap > window.innerWidth) left = r.left - previewSize - gap;
+      const top = Math.min(
+        Math.max(gap, r.top + r.height / 2 - previewSize / 2),
+        window.innerHeight - previewSize - gap
+      );
+      setPreview({ top, left });
+    },
+    [previewSize]
+  );
+  const hidePreview = useCallback(() => setPreview(null), []);
 
   if (!src || failed) return <Placeholder size={size} className={className} />;
 
@@ -52,6 +73,8 @@ export default function ItemImage({ image, size = 48, hover = false, previewSize
       height={size}
       style={{ width: size, height: size }}
       onError={() => setFailed(true)}
+      onMouseEnter={hover ? showPreview : undefined}
+      onMouseLeave={hover ? hidePreview : undefined}
       className={`shrink-0 rounded bg-gray-50 object-cover ${className}`}
     />
   );
@@ -59,21 +82,24 @@ export default function ItemImage({ image, size = 48, hover = false, previewSize
   if (!hover) return thumb;
 
   return (
-    <span className="group relative inline-block">
+    <>
       {thumb}
-      <span
-        className="pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2 rounded-lg border border-gray-200 bg-white p-1 opacity-0 shadow-lg transition-opacity duration-[250ms] group-hover:opacity-100"
-        aria-hidden="true"
-      >
-        <img
-          src={src}
-          alt=""
-          width={previewSize}
-          height={previewSize}
-          style={{ width: previewSize, height: previewSize }}
-          className="rounded object-contain"
-        />
-      </span>
-    </span>
+      {preview && (
+        <div
+          className="item-image-preview pointer-events-none fixed rounded-lg border border-gray-200 bg-white p-1 shadow-xl"
+          style={{ top: preview.top, left: preview.left, zIndex: 1000 }}
+          aria-hidden="true"
+        >
+          <img
+            src={src}
+            alt=""
+            width={previewSize}
+            height={previewSize}
+            style={{ width: previewSize, height: previewSize }}
+            className="rounded object-contain"
+          />
+        </div>
+      )}
+    </>
   );
 }

@@ -7,6 +7,7 @@ import AdjustStockModal from "../features/inventory/AdjustStockModal";
 import CategoryManager from "../features/inventory/CategoryManager";
 import ImportModal from "../features/inventory/ImportModal";
 import RecalculateCostModal from "../features/inventory/RecalculateCostModal";
+import ItemImage from "../components/ItemImage";
 
 const LIMIT = 20;
 
@@ -123,10 +124,11 @@ export default function InventoryPage() {
       {rowError && <div className="mb-3"><ErrorText>{rowError}</ErrorText></div>}
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
+              <th className="px-4 py-2 font-medium"><span className="sr-only">Image</span></th>
               <th className="px-4 py-2 font-medium">SKU</th>
               <th className="px-4 py-2 font-medium">Name</th>
               <th className="px-4 py-2 font-medium">Category</th>
@@ -139,16 +141,19 @@ export default function InventoryPage() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {isLoading && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             )}
             {isError && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
             )}
             {items.map((item) => (
               <tr key={item._id} className={item.isActive ? "" : "bg-gray-50/60"}>
+                <td className="py-2 pl-4 pr-0">
+                  <ItemImage image={item.image} size={48} hover alt={item.name} />
+                </td>
                 <td className="px-4 py-2 font-mono text-xs text-gray-600">{item.sku}</td>
                 <td className="px-4 py-2 font-medium text-gray-900">{item.name}</td>
                 <td className="px-4 py-2 text-gray-600">{catName(item.categoryId)}</td>
