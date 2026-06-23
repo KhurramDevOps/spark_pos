@@ -22,7 +22,12 @@ try {
   ];
   const KEEP = ["categories", "counters", "settings"];
 
-  console.log("Clearing:");
+  console.log("To be cleared (pre-count):");
+  for (const c of CLEAR) {
+    console.log(`  ${c}: ${await db.collection(c).countDocuments()}`);
+  }
+
+  console.log("\nClearing:");
   for (const c of CLEAR) {
     const r = await db.collection(c).deleteMany({});
     console.log(`  ${c}: deleted ${r.deletedCount}`);
