@@ -255,8 +255,21 @@ regression test** (`dailyClose.test.js`): closing a day then retroactively voidi
 sale flips the `stale` flag but leaves `actualCash` — and therefore the next day's starting
 cash — unchanged (carry-forward is pinned to physically-counted cash, not recomputed expected).
 
-**Phase 6 — Reports & analytics**
-All reports + graphs. Low-stock notifications (simple scheduled check).
+**Phase 6 — Reports & analytics** — ✅ **SHIPPED** (spec 006)
+One read-only Reports screen built on windowed aggregation (Today / This week / This month /
+Last month / Custom, default This month): headline tiles (revenue net of returns, gross profit,
+expenses, net) each with a "vs prior comparable window" delta; a profit-per-day trend chart
+(Recharts) whose days click through to that day's Daily Close; an item-performance table
+(sortable by qty / revenue / profit, top-20 + show-all) with a dead-stock list below; an
+expense breakdown by category; and a khata snapshot (top customers/suppliers by balance, owed
+vs store-credit, linking to their ledgers). All aggregation computed on read from immutable
+sources (ADR-011); windows bucket by `createdAt` in Asia/Karachi (ADR-010). *Verified
+end-to-end in the browser* — window switching, custom range, trend day-click → Daily Close,
+item-table sorting, dead stock, expense totals reconciling to the headline tile, and khata
+links. **Headline regression test** (`reports.test.js`): the per-day trend (day-loop over the
+005 aggregation) sums to exactly the single-range window totals — the proof that ADR-010's
+range-parameterized promise actually held and the trend can never disagree with the headline.
+Low-stock notifications (simple scheduled check) deferred — fold into a later slice if wanted.
 
 **Phase 7 — AI layer**
 Q&A chatbot over the data (read-only first, safest), then conversational sales/stock with a

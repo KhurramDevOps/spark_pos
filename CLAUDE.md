@@ -12,10 +12,12 @@ Optimise for **correctness and ease of use, not scale**.
 Read `docs/PROJECT_PLAN.md` for the full product spec, domain model, and roadmap. Read the
 active spec in `docs/specs/` before implementing a feature.
 
-**Status:** Phases 1–3 + 5 shipped (specs 001, 002, 003, 003b, 004, 004b, 005). Purchase side
-and sell side are both fully recoverable in-app (reversals/voids/returns); expenses, drawer
-adjustments, and a daily-close screen (cash math + gross profit/net + per-line drill-downs)
-are live. **Next: Phase 6 — Reports & analytics.**
+**Status:** Phases 1–3 + 5 + 6 shipped (specs 001, 002, 003, 003b, 004, 004b, 005, 006).
+Purchase side and sell side are both fully recoverable in-app (reversals/voids/returns);
+expenses, drawer adjustments, and a daily-close screen (cash math + gross profit/net + per-line
+drill-downs) are live; a windowed Reports screen (headline tiles with vs-prior deltas,
+profit-per-day trend, item performance + dead stock, expense breakdown, khata snapshot) reads
+all numbers on-the-fly from immutable sources (ADR-011). **Next: Phase 7 — AI layer.**
 
 ## Golden rules
 
@@ -37,7 +39,7 @@ are live. **Next: Phase 6 — Reports & analytics.**
 - MongoDB + Mongoose — data layer
 - Tailwind CSS + shadcn/ui
 - TanStack Query, Zustand (client state), Zod (validation)
-- Recharts (analytics)
+- Recharts (analytics) — installed (spec 006)
 - Auth: hashed password (bcrypt) + JWT or session cookie; `role` = `owner` | `worker`
 - AI (later): Anthropic Claude **Messages API + tool use** (Haiku 4.5 default, Sonnet 4.6 when
   needed). Start with a plain tool-use loop, not the Agent SDK.
