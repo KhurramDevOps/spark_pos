@@ -1,6 +1,6 @@
 # Spec: 006 — Reports & analytics
 
-- **Status:** draft (pending review)
+- **Status:** in-progress (review complete; building helpers + aggregation + tests first)
 - **Phase:** Phase 6 — Reports & analytics
 - **Author / date:** <you> / <fill in>
 - **Builds on:** every prior phase. Reuses the `[start, end]`-parameterized aggregation pattern
@@ -36,6 +36,14 @@ from already-immutable, already-correct source data:
 what spec 005 already solved.** This is the lightest spec since 004b's polish slice. The risk
 is *over-building* — too many charts, too many filters, too much novelty. Default to fewer,
 clearer views that answer real owner questions.
+
+That said — **correctness-light is not implementation-light.** While no new correctness
+machinery is needed, there is genuine *new* aggregation code to write: window resolvers
+(week / month / last-month / custom + prior-comparable-window), per-day bucketing for the
+trend, the per-item Sale.lines + CustomerReturn.lines join, and a revenue-net-of-returns
+aggregation that spec 005 never needed. The reuse of 005's `[start,end]` service covers the
+headline profit/expenses cleanly, but these four pieces are net-new — don't undersell the
+estimate as "just call 005's service for longer ranges."
 
 ## 3. User stories
 - As the owner, I want to see profit, revenue, and expenses for this week / this month / a
@@ -144,6 +152,9 @@ future optimization, do not add now.
 - [ ] Headline tiles compute revenue, gross profit, expenses, net correctly for each window,
       and match a hand-calculated value on a small dataset (regression-test against summed
       per-sale profit from Sale History for the same window).
+- [ ] **Revenue is net of returns** (own line item, not folded into the profit regression):
+      headline Revenue = Σ non-voided Sale.total in window − Σ CustomerReturn.total in window.
+      A return inside the window lowers Revenue even when its original sale is outside the window.
 - [ ] Voided sales are excluded from every aggregation.
 - [ ] Customer returns reduce the right window's revenue + profit, not the original sale's
       window (regression: return today on last-month's sale lowers *this month's* numbers).
@@ -152,12 +163,17 @@ future optimization, do not add now.
 - [ ] Delta shows green/red/grey correctly, and handles the "prior window has zero" case
       gracefully (no division by zero in the % display).
 - [ ] Trend chart renders one bar/point per day in the window, with correct daily profit.
+- [ ] **Trend day buckets use Asia/Karachi boundaries** (ADR-010): a sale at 11:55pm Karachi
+      lands in that Karachi day's bucket, not the next, even when server UTC would roll it over
+      (mirrors spec 005's 11:55pm boundary test).
 - [ ] Clicking a day on the trend chart navigates to that day's Daily Close view.
 - [ ] Item performance table is sortable by qty / revenue / profit, defaults to profit desc,
       shows top 20 with expand-to-all.
 - [ ] Item performance numbers net out returns correctly (regression: sell 10, return 2,
       table shows qty 8 and profit accordingly).
 - [ ] Dead stock list shows only items with zero window sales AND positive current stock.
+- [ ] **Dead stock is voided-aware**: an item whose only in-window sale was voided counts as
+      dead (the voided-exclusion applies to the "did it sell?" test, not just to totals).
 - [ ] Expense breakdown chart shows correct category totals; sum equals headline Expenses
       tile.
 - [ ] Khata snapshot lists show correct top-10 by absolute balance, with sign respected
@@ -169,26 +185,21 @@ future optimization, do not add now.
 - [ ] Performance: the screen for a one-month window with realistic data (a few hundred
       sales, dozens of returns, dozens of expenses) renders in well under a second.
 
-## 9. Open questions (resolve in review)
-1. **Should the trend chart show profit only, or stacked profit + expenses + net?** Leaning:
-   single profit line for v1 (clearest answer to "how am I doing"); add overlays only if the
-   single line proves insufficient. Confirm.
-2. **Dead stock window**: should "dead" be based on the selected window (e.g. "no sales this
-   month") or a fixed lookback like 30/60/90 days regardless of window? Leaning: tied to the
-   selected window, so the owner can ask "what didn't sell last month" by selecting it.
-   Confirm.
-3. **Top khata lists**: 10 rows enough, or more / configurable? Leaning: 10 each, "show all"
-   link goes to existing Customers / Suppliers screens.
-4. **Should the Reports screen replace the existing Negative Stock view, or stay separate?**
-   Leaning: stay separate — Negative Stock is an operational alert, Reports is analytical.
-   Confirm.
-5. **Aggregation service shape**: one big `getReport(window)` endpoint that returns
-   everything, or several smaller endpoints (`/reports/headline`, `/reports/trend`,
-   `/reports/items`, `/reports/expenses`, `/reports/khata`)? Leaning: one endpoint, one
-   round-trip, simpler frontend. Several endpoints would only be worth it if any one query
-   becomes slow enough to want independent caching — premature for v1. Confirm.
-6. **Default window**: This month (leaning) vs This week vs Today. The owner will most often
-   want "how's the month going" since that's his salary/rent comparison frame. Confirm.
+## 9. Decisions (resolved in review)
+1. **Trend chart shape:** single **profit-only** line for v1 — clearest answer to "how am I
+   doing." Hover still surfaces revenue/profit/expenses for the day; stacked overlays only if
+   the single line proves insufficient. ✅
+2. **Dead stock window:** **tied to the selected window** (e.g. select last month → "what
+   didn't sell last month"). Voided-aware: a voided-only sale does not count as a sale. ✅
+3. **Top khata lists:** **10 rows each** (owed / store-credit); "show all" links to the
+   existing Customers / Suppliers screens. ✅
+4. **Reports vs Negative Stock:** **stay separate** — Negative Stock is an operational alert,
+   Reports is analytical. ✅
+5. **Aggregation service shape:** **one `/reports?window=...` endpoint**, one round-trip,
+   simpler frontend; also lets the Phase-7 AI call the same endpoint the screen does. Split
+   into per-section endpoints only if a single query later measures slow enough to want
+   independent caching — premature for v1. ✅
+6. **Default window:** **This month** — the owner's salary/rent comparison frame. ✅
 
 ## 10. Notes / decisions
 - This spec adds NO new correctness-critical machinery. The §8 acceptance list is mostly

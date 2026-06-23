@@ -15,6 +15,40 @@ Format:
 
 ---
 
+## ADR-011 — Aggregate on read; never denormalize derived totals
+- Date: 2026-06-23
+- Status: accepted
+- Context: Three specs in a row have computed reporting numbers by reading immutable source
+  rows at query time rather than maintaining a stored running total: 004b's returns indicator
+  on Sale History, 005's daily-close cash math + gross profit, and now 006's reports (headline
+  tiles, trend, item performance, expense breakdown). Each was argued case-by-case; the pattern
+  is now consistent enough to make an explicit rule so future specs don't re-litigate it.
+- Decision:
+  - **Derived totals are computed on read from immutable source collections (Sale, CustomerReturn,
+    Expense, payments, Item), never stored as a denormalized aggregate.** Profit, revenue, daily
+    cash math, per-item performance, balances-for-display — all recomputed from the source rows
+    each time. The source rows are the single point of truth; there is no second copy to drift.
+  - **Why:** denormalized totals are the classic correctness hazard — they drift the moment any
+    contributing row is voided/returned/edited and a recompute is missed. Aggregate-on-read can
+    never drift because there is nothing to keep in sync. At this shop's volume (low traffic,
+    hundreds of sales/month) the read cost is trivially fast, so the safety is free.
+  - **What this does NOT cover:** the few *physical-fact* snapshots that legitimately must be
+    stored because they cannot be re-derived — `Sale.lines.costAtTime` (the avgCost at sale
+    instant), `DayClose.actualCash` (what was physically counted). Those are inputs, not derived
+    aggregates, and stay stored (see ADR-008, ADR-009). The cached `Customer.balance` /
+    `Supplier.balance` are a deliberate, transaction-maintained exception (updated inside the
+    same write that moves the ledger) — reports may *read* them but must not recompute and
+    re-store them.
+  - **EXTENSION POINT (future-me, read this):** if a report ever measures too slow on a real
+    range with real data, the fix is, in order: (1) add the compound index the query needs
+    (e.g. `(createdAt, voided)` on Sale) — see spec 006 §5; (2) only if indexing is insufficient,
+    introduce a denormalized cache **behind a measured benchmark**, with a documented recompute
+    path and a test proving it matches the aggregate-on-read result. **Never denormalize
+    pre-emptively or by gut feel — only after measurement shows a real problem.**
+- Consequences: zero drift risk for all derived reporting; trivially correct; slightly more
+  query work per read (negligible at this volume). The seam for a future cache is explicit and
+  gated on measurement, so the default stays safe.
+
 ## ADR-010 — Daily-close aggregation buckets by `createdAt` in Asia/Karachi, not by `date`
 - Date: 2026-06-23
 - Status: accepted
