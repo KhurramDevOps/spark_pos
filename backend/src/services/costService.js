@@ -4,18 +4,24 @@ import StockMovement from "../models/StockMovement.js";
 import { applyPurchaseToCost } from "./purchaseService.js";
 import { add, decimalToString, toDecimal128, isNegative } from "../lib/decimal.js";
 
+// Movement types that bear cost and drive the weighted-average recompute. Opening
+// stock (ADR-013) joins purchase here; all other types are qty-only in replay.
+const COST_BEARING = new Set(["purchase", "opening"]);
+
 /**
  * Recompute an item's weighted-average cost AND a verified stock quantity by
  * REPLAYING its full movement history — the only correct way to fix avgCost after
  * a reversal/return, since a weighted average can't be un-averaged (ADR-006).
  *
- * The rule (spec 003b §2/§6):
- *   - Walk ALL of the item's movements in posting order — purchase, adjustment
- *     (incl. opening stock), sale, return, reversal — keeping a running
- *     (stockQty, avgCost) from (0, 0).
- *   - At a `purchase` movement (the only cost-bearing event) recompute the
- *     average via `applyPurchaseToCost` (spec 003 §6 floored-weighted-average,
- *     reused VERBATIM — one avgCost code path).
+ * The rule (spec 003b §2/§6, extended by spec 006c / ADR-013):
+ *   - Walk ALL of the item's movements in posting order — purchase, opening,
+ *     sale, return, adjustment, reversal — keeping a running (stockQty, avgCost)
+ *     from (0, 0).
+ *   - At a COST-BEARING movement (`purchase` OR `opening` — see COST_BEARING)
+ *     recompute the average via `applyPurchaseToCost` (spec 003 §6 floored-
+ *     weighted-average, reused VERBATIM — one avgCost code path). `opening`
+ *     declares pre-existing stock at its real cost and is treated identically to
+ *     a purchase for cost; it just has no supplier/cash side (ADR-013).
  *   - At every other movement type, apply the signed qty to running stock and
  *     leave avgCost unchanged.
  *
@@ -71,15 +77,15 @@ export async function recomputeItemCostByReplay(itemId, { session, excludeRefIds
 
     const qty = decimalToString(mv.qty);
 
-    if (mv.type === "purchase") {
-      // A cost-bearing movement with no (or negative) cost is corruption —
-      // surface it loudly, never silently treat as 0 (ADR-006 guard).
+    if (COST_BEARING.has(mv.type)) {
+      // A cost-bearing movement (purchase or opening) with no (or negative) cost
+      // is corruption — surface it loudly, never silently treat as 0 (ADR-006 guard).
       if (mv.costAtTime == null) {
-        throw new Error(`replay: purchase movement ${mv._id} is missing costAtTime`);
+        throw new Error(`replay: ${mv.type} movement ${mv._id} is missing costAtTime`);
       }
       const cost = decimalToString(mv.costAtTime);
       if (isNegative(cost)) {
-        throw new Error(`replay: purchase movement ${mv._id} has a negative costAtTime (${cost})`);
+        throw new Error(`replay: ${mv.type} movement ${mv._id} has a negative costAtTime (${cost})`);
       }
       const { newAvg, newStock } = applyPurchaseToCost(runQty, runAvg, qty, cost);
       runAvg = newAvg;

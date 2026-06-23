@@ -5,7 +5,9 @@ const { Schema } = mongoose;
 // "reversal" is distinct from "return" so a purchase-reversal (undo a whole
 // posted purchase) is readable in history separately from a supplier-return
 // (send some stock back). Both use negative qty. See ADR-006.
-const MOVEMENT_TYPES = ["purchase", "sale", "return", "adjustment", "reversal"];
+// "opening" declares pre-existing inventory with its real per-unit cost — a
+// cost-bearing event like "purchase", but with no supplier/cash side (ADR-013).
+const MOVEMENT_TYPES = ["purchase", "opening", "sale", "return", "adjustment", "reversal"];
 
 const stockMovementSchema = new Schema(
   {
