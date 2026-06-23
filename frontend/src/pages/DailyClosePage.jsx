@@ -51,7 +51,7 @@ function ExpensesList({ onEdit }) {
   );
 }
 
-export default function DailyClosePage() {
+export default function DailyClosePage({ dailyCloseDate }) {
   const [modal, setModal] = useState(null); // 'expense' | 'drawer' | null
   const [editing, setEditing] = useState(null); // expense being edited
 
@@ -73,7 +73,7 @@ export default function DailyClosePage() {
         </div>
       </header>
 
-      <DailyClose />
+      <DailyClose initialDate={dailyCloseDate} />
 
       <section className="mt-8">
         <h2 className="mb-2 text-sm font-semibold text-gray-900">Expenses</h2>

@@ -66,8 +66,9 @@ function MathRow({ sign, label, paisa, bold, divider, line, date }) {
  * difference, and persists the close (carrying actualCash forward as tomorrow's
  * starting float). Drill-down-per-line is a deferred follow-up slice.
  */
-export default function DailyClose() {
-  const [date, setDate] = useState(todayLabel());
+export default function DailyClose({ initialDate } = {}) {
+  // initialDate (YYYY-MM-DD) lets the Reports trend chart open a specific day.
+  const [date, setDate] = useState(initialDate || todayLabel());
   const [actual, setActual] = useState("");
   const [note, setNote] = useState("");
   const [errors, setErrors] = useState([]);

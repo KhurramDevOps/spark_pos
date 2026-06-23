@@ -7,6 +7,7 @@ import SalesHistoryPage from "./pages/SalesHistoryPage";
 import CustomersPage from "./pages/CustomersPage";
 import NegativeStockPage from "./pages/NegativeStockPage";
 import DailyClosePage from "./pages/DailyClosePage";
+import ReportsPage from "./pages/ReportsPage";
 
 const TABS = [
   { id: "sales", label: "Sales" },
@@ -17,6 +18,7 @@ const TABS = [
   { id: "purchases", label: "Purchases" },
   { id: "suppliers", label: "Suppliers" },
   { id: "dailyClose", label: "Daily Close" },
+  { id: "reports", label: "Reports" },
 ];
 
 const PAGES = {
@@ -28,10 +30,19 @@ const PAGES = {
   purchases: PurchasesPage,
   suppliers: SuppliersPage,
   dailyClose: DailyClosePage,
+  reports: ReportsPage,
 };
 
 function App() {
   const [tab, setTab] = useState("sales");
+  // Payload carried across a programmatic navigation (e.g. Reports → a specific
+  // Daily Close date). Cleared on any manual tab click.
+  const [dailyCloseDate, setDailyCloseDate] = useState(null);
+
+  const navigate = (tabId, payload = null) => {
+    setTab(tabId);
+    setDailyCloseDate(tabId === "dailyClose" ? payload : null);
+  };
 
   return (
     <div className="min-h-screen">
@@ -42,7 +53,7 @@ function App() {
             {TABS.map((t) => (
               <button
                 key={t.id}
-                onClick={() => setTab(t.id)}
+                onClick={() => navigate(t.id)}
                 className={`border-b-2 px-3 py-3 text-sm font-medium transition ${
                   tab === t.id
                     ? "border-indigo-600 text-indigo-600"
@@ -57,7 +68,7 @@ function App() {
       </div>
       {(() => {
         const Page = PAGES[tab] ?? InventoryPage;
-        return <Page />;
+        return <Page onNavigate={navigate} dailyCloseDate={dailyCloseDate} />;
       })()}
     </div>
   );
