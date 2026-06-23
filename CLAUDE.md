@@ -12,12 +12,14 @@ Optimise for **correctness and ease of use, not scale**.
 Read `docs/PROJECT_PLAN.md` for the full product spec, domain model, and roadmap. Read the
 active spec in `docs/specs/` before implementing a feature.
 
-**Status:** Phases 1–3 + 5 + 6 shipped (specs 001, 002, 003, 003b, 004, 004b, 005, 006).
+**Status:** Phases 1–3 + 5 + 6 shipped (specs 001, 002, 003, 003b, 004, 004b, 005, 006, 006b).
 Purchase side and sell side are both fully recoverable in-app (reversals/voids/returns);
 expenses, drawer adjustments, and a daily-close screen (cash math + gross profit/net + per-line
 drill-downs) are live; a windowed Reports screen (headline tiles with vs-prior deltas,
 profit-per-day trend, item performance + dead stock, expense breakdown, khata snapshot) reads
-all numbers on-the-fly from immutable sources (ADR-011). **Next: Phase 7 — AI layer.**
+all numbers on-the-fly from immutable sources (ADR-011); product images (one per item, stored
+outside Mongo behind a storage-driver interface — ADR-012) show across Inventory, the POS
+picker, and Reports. **Next: Phase 7 — AI layer.**
 
 ## Golden rules
 

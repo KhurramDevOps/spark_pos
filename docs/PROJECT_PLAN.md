@@ -271,6 +271,18 @@ links. **Headline regression test** (`reports.test.js`): the per-day trend (day-
 range-parameterized promise actually held and the trend can never disagree with the headline.
 Low-stock notifications (simple scheduled check) deferred — fold into a later slice if wanted.
 
+**Phase 6 polish — Product images** — ✅ **SHIPPED** (spec 006b)
+One optional image per item, stored outside MongoDB behind a storage-driver interface
+(`LocalDiskDriver` now, `S3Driver` stub for prod — ADR-012); only a reference lives on
+`Item.image`. Upload (multer + Sharp resize to ≤800px JPEG) or paste a URL; replace/remove with
+best-effort file cleanup; served public-read at `/api/static/items/:key`; CSV import gained an
+optional `imageUrl` column. One reusable `ItemImage` component (placeholder, `loading="lazy"`,
+`?v=updatedAt` cache-bust, JS-positioned fixed hover-preview that escapes table clipping) wired
+into Inventory (48px + hover), the POS/shared item picker (40px + hover), and Reports item
+performance (32px, no hover), plus a "without image" filter chip on Inventory. Verified
+end-to-end (backend curl + browser, surface by surface). The first infrastructure-shaped feature
+in the project; no money/stock/cost logic touched.
+
 **Phase 7 — AI layer**
 Q&A chatbot over the data (read-only first, safest), then conversational sales/stock with a
 confirm step. Anthropic Messages API + tool use.

@@ -1,6 +1,8 @@
 # Spec: 006b — Product images (inventory + POS polish)
 
-- **Status:** in-progress (review complete; building storage driver + tests first)
+- **Status:** ✅ SHIPPED — storage driver (ADR-012), Item.image + upload/URL/delete routes,
+  Sharp pipeline, CSV imageUrl, and the ItemImage component across Inventory / POS picker /
+  Reports + the "without image" filter chip. Verified end-to-end (backend curl + browser).
 - **Phase:** Phase 6 polish — visual upgrade to inventory/POS/item picker.
 - **Author / date:** <you> / <fill in>
 - **Builds on:** Item model (spec 001), Inventory CRUD UI, POS item picker (spec 004),
