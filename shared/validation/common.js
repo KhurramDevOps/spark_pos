@@ -21,3 +21,19 @@ export const positiveDecimalString = z
   .string()
   .regex(/^\d+(\.\d+)?$/, "must be a positive decimal (e.g. \"2.5\")")
   .refine((v) => /[1-9]/.test(v), "must be greater than 0");
+
+/**
+ * A valid http(s) URL string (spec 006b). Used for image URLs (Item.image and the
+ * CSV imageUrl column). Rejects non-URLs and non-http schemes like javascript:/file:.
+ */
+export const httpUrl = z
+  .string()
+  .trim()
+  .refine((s) => {
+    try {
+      const u = new URL(s);
+      return u.protocol === "http:" || u.protocol === "https:";
+    } catch {
+      return false;
+    }
+  }, "must be a valid http(s) URL");

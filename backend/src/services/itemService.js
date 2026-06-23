@@ -3,6 +3,7 @@ import Item from "../models/Item.js";
 import Category from "../models/Category.js";
 import StockMovement from "../models/StockMovement.js";
 import { generateSku } from "./skuService.js";
+import { deleteStoredImageIfUpload } from "./imageService.js";
 import { parseDecimal, subtract, isZero, isNegative, decimalToString } from "../lib/decimal.js";
 
 /**
@@ -85,6 +86,7 @@ export async function createItem(input, { userId } = {}) {
             reorderLevel: input.reorderLevel ?? 0,
             notes: input.notes,
             stockQty: openingQty,
+            image: input.image ? { kind: "url", ref: input.image.ref, updatedAt: new Date() } : null,
           },
         ],
         { session }
@@ -232,11 +234,21 @@ export async function updateItem(id, input, { userId } = {}) {
     }
   }
 
+  // Image set/replace via PATCH (URL kind only; uploads go through the image
+  // route, removal through DELETE). Replacing an upload-backed image cleans up
+  // the old file after the save succeeds.
+  let previousImage;
+  if (input.image !== undefined) {
+    previousImage = item.image;
+    item.image = { kind: "url", ref: input.image.ref, updatedAt: new Date() };
+  }
+
   try {
     await item.save();
   } catch (err) {
     rethrowDuplicateSku(err, input.sku ?? item.sku);
   }
+  if (previousImage) await deleteStoredImageIfUpload(previousImage);
   return item;
 }
 

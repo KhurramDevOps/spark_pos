@@ -11,6 +11,7 @@ import expenseRoutes from "./routes/expenseRoutes.js";
 import drawerAdjustmentRoutes from "./routes/drawerAdjustmentRoutes.js";
 import dailyCloseRoutes from "./routes/dailyCloseRoutes.js";
 import reportRoutes from "./routes/reportsRoutes.js";
+import { storage } from "./lib/storage/index.js";
 import { currentUser } from "./middleware/currentUser.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
@@ -39,6 +40,22 @@ export function createApp() {
   app.use("/api/drawer-adjustments", drawerAdjustmentRoutes);
   app.use("/api/daily-close", dailyCloseRoutes);
   app.use("/api/reports", reportRoutes);
+
+  // Public-read image bytes (spec 006b). Served under /api so the single Vite dev
+  // proxy covers it. Only the local driver serves from disk; S3 returns absolute
+  // URLs and never hits this route.
+  app.get("/api/static/items/:key", (req, res) => {
+    if (typeof storage.pathFor !== "function") return res.status(404).end();
+    let filePath;
+    try {
+      filePath = storage.pathFor(req.params.key);
+    } catch {
+      return res.status(404).end();
+    }
+    res.sendFile(filePath, (err) => {
+      if (err && !res.headersSent) res.status(404).end();
+    });
+  });
 
   app.use(notFound);
   app.use(errorHandler);

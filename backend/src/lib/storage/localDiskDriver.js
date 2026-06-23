@@ -15,8 +15,13 @@ const KEY_RE = /^[A-Za-z0-9-]+\.jpg$/;
  * resized by the caller (Sharp) — this driver is format-agnostic, it just persists.
  */
 export class LocalDiskDriver {
-  constructor({ baseDir = process.env.UPLOADS_DIR || DEFAULT_BASE } = {}) {
-    this.baseDir = baseDir;
+  constructor({ baseDir } = {}) {
+    this._baseDir = baseDir; // explicit override (tests); else resolved lazily
+  }
+
+  // Lazy so UPLOADS_DIR set after construction (e.g. in tests) is still honored.
+  get baseDir() {
+    return this._baseDir || process.env.UPLOADS_DIR || DEFAULT_BASE;
   }
 
   /** Absolute path for a key; throws on a malformed/unsafe key. */

@@ -295,4 +295,4 @@ decisions in §2 are what makes this spec slightly heavier than 005/006.
      piece of the spec).
 - After ship: ADR-012 written, PROJECT_PLAN.md updated to mark 006b shipped, CLAUDE.md
   status updated. The next thing is genuinely Phase 7 (AI) — there will not be any more
-  polish slices unless real-shop usage surfaces a need.
+  polish slices unless real-shop usage surfaces a need.\

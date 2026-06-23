@@ -9,9 +9,11 @@
  */
 import Papa from "papaparse";
 import { BASE_UNITS } from "../../../shared/validation/item.js";
+import { httpUrl } from "../../../shared/validation/common.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 // Locked template headers (spec 002 §7.1 / ADR-004). Order matters for the template.
+// imageUrl appended for spec 006b — optional, validated as an http(s) URL.
 export const HEADERS = [
   "name",
   "categoryName",
@@ -21,6 +23,7 @@ export const HEADERS = [
   "reorderLevel",
   "openingStock",
   "sku",
+  "imageUrl",
 ];
 
 // Whole-file reject if any of these is missing.
@@ -34,8 +37,8 @@ export const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 // Downloadable template: locked headers + two example rows (rupee prices, one
 // auto-SKU row with sku left blank, one with an explicit SKU).
 export const TEMPLATE_CSV = `${HEADERS.join(",")}
-GM 7/29 wire,Wire,gaz,120,110,5,100,
-Ceiling Fan,Fans,piece,8500,8000,2,10,FAN-1001
+GM 7/29 wire,Wire,gaz,120,110,5,100,,
+Ceiling Fan,Fans,piece,8500,8000,2,10,FAN-1001,https://example.com/fan.jpg
 `;
 
 /**
@@ -167,6 +170,15 @@ export function normalizeRow(raw, rowNumber) {
       skuProvided = s;
       data.sku = s;
     }
+  }
+
+  // imageUrl — optional; stored as a url-kind image (spec 006b). Invalid URLs
+  // surface as a row-level error in the existing preview, like any other field.
+  if (!isBlank(raw.imageUrl)) {
+    const s = String(raw.imageUrl).trim();
+    const parsed = httpUrl.safeParse(s);
+    if (!parsed.success) errors.push(`imageUrl must be a valid http(s) URL (got "${s}")`);
+    else data.image = { kind: "url", ref: parsed.data };
   }
 
   return {

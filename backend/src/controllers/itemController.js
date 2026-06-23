@@ -7,10 +7,21 @@ import {
   listNegativeStockItems,
 } from "../services/itemService.js";
 import { recalculateItemCost } from "../services/costService.js";
+import { setUploadedImage, removeImage } from "../services/imageService.js";
 import Item from "../models/Item.js";
 
 /** Wrap an async handler so thrown/rejected errors reach the error middleware. */
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+export const uploadImage = wrap(async (req, res) => {
+  const item = await setUploadedImage(req.params.id, req.file);
+  res.json(item);
+});
+
+export const deleteImage = wrap(async (req, res) => {
+  const item = await removeImage(req.params.id);
+  res.json(item);
+});
 
 export const recalculateCost = wrap(async (req, res) => {
   const result = await recalculateItemCost(req.params.id, { userId: req.userId });

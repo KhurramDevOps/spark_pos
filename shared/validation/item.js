@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { objectId, nonNegativeDecimalString } from "./common.js";
+import { objectId, nonNegativeDecimalString, httpUrl } from "./common.js";
+
+// A URL-kind image set/replaced via JSON (create or PATCH). Upload-kind images
+// are produced server-side by the upload route, never accepted from the client.
+const urlImage = z.object({ kind: z.literal("url"), ref: httpUrl });
 
 // The allowed base units (spec 001 §9.1). Kept here so frontend and backend
 // share one source of truth.
@@ -29,6 +33,8 @@ export const createItemSchema = z.object({
   sku: skuField.optional(),
   // Opening stock; defaults to "0" (then no opening movement is written).
   openingQty: nonNegativeDecimalString.default("0"),
+  // Optional URL image at create time (uploads come later via the image route).
+  image: urlImage.optional(),
 });
 
 // All fields optional on update. stockQty, avgCost, and isActive are intentionally
@@ -43,6 +49,8 @@ export const updateItemSchema = z
     reorderLevel,
     notes: z.string().trim().max(2000).nullable(),
     sku: skuField,
+    // Set or replace the image with a URL. Removal is via DELETE /items/:id/image.
+    image: urlImage,
   })
   .partial()
   .refine((data) => Object.keys(data).length > 0, { message: "no fields to update" });

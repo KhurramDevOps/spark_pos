@@ -20,6 +20,19 @@ const itemUnitSchema = new Schema(
   { _id: false }
 );
 
+// One optional image per item (spec 006b). `ref` is a storage key (uploads,
+// served at /api/static/items/<ref>) or an external URL. `updatedAt` busts the
+// browser cache on replace. Bytes live outside Mongo behind the storage driver
+// (ADR-012) — this sub-doc holds only the reference.
+const itemImageSchema = new Schema(
+  {
+    kind: { type: String, required: true, enum: ["upload", "url"] },
+    ref: { type: String, required: true, trim: true },
+    updatedAt: { type: Date, required: true, default: Date.now },
+  },
+  { _id: false }
+);
+
 const itemSchema = new Schema(
   {
     sku: { type: String, required: true, trim: true },
@@ -50,6 +63,9 @@ const itemSchema = new Schema(
 
     notes: { type: String, trim: true },
     isActive: { type: Boolean, default: true },
+
+    // Optional product image (spec 006b). Absent = no image (render placeholder).
+    image: { type: itemImageSchema, default: null },
 
     // Future ItemUnit sub-docs (multi-unit selling). Shape locked; unused now.
     units: { type: [itemUnitSchema], default: [] },
