@@ -33,8 +33,20 @@ export const createItemSchema = z.object({
   sku: skuField.optional(),
   // Opening stock; defaults to "0" (then no opening movement is written).
   openingQty: nonNegativeDecimalString.default("0"),
+  // Declared opening cost (paisa, decimal string >= 0). Paired with openingQty
+  // (spec 006c): both together or both absent — never one without the other.
+  openingUnitCost: nonNegativeDecimalString.optional(),
   // Optional URL image at create time (uploads come later via the image route).
   image: urlImage.optional(),
+}).superRefine((v, ctx) => {
+  const hasQty = v.openingQty != null && v.openingQty !== "0" && /[1-9]/.test(v.openingQty);
+  const hasCost = v.openingUnitCost != null && v.openingUnitCost !== "";
+  if (hasQty && !hasCost) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "openingUnitCost is required when openingQty is set", path: ["openingUnitCost"] });
+  }
+  if (hasCost && !hasQty) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "openingQty must be greater than 0 when openingUnitCost is set", path: ["openingQty"] });
+  }
 });
 
 // All fields optional on update. stockQty, avgCost, and isActive are intentionally

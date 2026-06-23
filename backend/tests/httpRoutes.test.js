@@ -56,19 +56,23 @@ test("full happy path over HTTP: category -> item(opening) -> adjust -> list", a
   assert.ok(category._id);
   assert.equal(category.skuPrefix, "WIRE");
 
-  // create item with opening stock
+  // create item with opening stock + declared cost (spec 006c — opening now
+  // requires a unit cost; it writes a cost-bearing `opening` movement)
   res = await postJson("/items", {
     name: "GM 7/29 wire",
     categoryId: category._id,
     baseUnit: "gaz",
     retailPrice: 12000,
     openingQty: "2.5",
+    openingUnitCost: "10000", // Rs 100
   });
   assert.equal(res.status, 201);
   const { item, openingMovement } = await res.json();
   assert.equal(item.sku, "WIRE-0001");
   assert.equal(item.stockQty.$numberDecimal, "2.5");
+  assert.equal(item.avgCost.$numberDecimal, "10000");
   assert.ok(openingMovement);
+  assert.equal(openingMovement.type, "opening");
 
   // adjust to absolute 7 -> delta +4.5
   res = await postJson(`/items/${item._id}/adjust`, {

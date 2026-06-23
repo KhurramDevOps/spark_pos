@@ -4,7 +4,7 @@ import Category from "../models/Category.js";
 import StockMovement from "../models/StockMovement.js";
 import { generateSku } from "./skuService.js";
 import { deleteStoredImageIfUpload } from "./imageService.js";
-import { parseDecimal, subtract, isZero, isNegative, decimalToString } from "../lib/decimal.js";
+import { parseDecimal, subtract, isZero, isNegative, decimalToString, toDecimal128 } from "../lib/decimal.js";
 
 /**
  * Run `fn(session)` inside a single MongoDB transaction. Every write that
@@ -55,6 +55,25 @@ export async function createItem(input, { userId } = {}) {
     throw e;
   }
 
+  // Opening cost (spec 006c). When provided, the item is DECLARED with its real
+  // per-unit cost: a cost-bearing `opening` movement (ADR-013), not the legacy
+  // cost-less `adjustment`. costAtTime is paisa (decimal string), >= 0.
+  const hasOpeningCost = input.openingUnitCost != null && String(input.openingUnitCost) !== "";
+  let openingUnitCost = null;
+  if (hasOpeningCost) {
+    openingUnitCost = parseDecimal(input.openingUnitCost, "openingUnitCost");
+    if (isNegative(openingUnitCost)) {
+      const e = new Error("openingUnitCost cannot be negative");
+      e.status = 400;
+      throw e;
+    }
+    if (isZero(openingQty)) {
+      const e = new Error("openingUnitCost requires a positive openingQty");
+      e.status = 400;
+      throw e;
+    }
+  }
+
   const manualSku = input.sku != null && String(input.sku).trim() !== "";
   const sku = manualSku ? String(input.sku).trim() : null;
 
@@ -86,6 +105,8 @@ export async function createItem(input, { userId } = {}) {
             reorderLevel: input.reorderLevel ?? 0,
             notes: input.notes,
             stockQty: openingQty,
+            // A declared opening sets avgCost immediately; otherwise default 0.
+            ...(hasOpeningCost ? { avgCost: toDecimal128(openingUnitCost) } : {}),
             image: input.image ? { kind: "url", ref: input.image.ref, updatedAt: new Date() } : null,
           },
         ],
@@ -94,15 +115,28 @@ export async function createItem(input, { userId } = {}) {
 
       let openingMovement = null;
       if (!isZero(openingQty)) {
+        // With a declared cost → a cost-bearing `opening` movement (the replay
+        // averages it, ADR-013). Without → the legacy cost-less qty-only path
+        // (user-facing create/CSV require the cost via validation; this branch
+        // remains for internal/direct callers).
         const [mv] = await StockMovement.create(
           [
-            {
-              itemId: item._id,
-              qty: openingQty,
-              type: "adjustment",
-              note: "opening stock",
-              createdBy: userId,
-            },
+            hasOpeningCost
+              ? {
+                  itemId: item._id,
+                  qty: openingQty,
+                  type: "opening",
+                  costAtTime: openingUnitCost,
+                  note: input.note ?? "opening stock",
+                  createdBy: userId,
+                }
+              : {
+                  itemId: item._id,
+                  qty: openingQty,
+                  type: "adjustment",
+                  note: "opening stock",
+                  createdBy: userId,
+                },
           ],
           { session }
         );
