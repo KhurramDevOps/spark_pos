@@ -6,6 +6,7 @@ import SalesPage from "./pages/SalesPage";
 import SalesHistoryPage from "./pages/SalesHistoryPage";
 import CustomersPage from "./pages/CustomersPage";
 import NegativeStockPage from "./pages/NegativeStockPage";
+import DailyClosePage from "./pages/DailyClosePage";
 
 const TABS = [
   { id: "sales", label: "Sales" },
@@ -15,6 +16,7 @@ const TABS = [
   { id: "negativeStock", label: "Negative Stock" },
   { id: "purchases", label: "Purchases" },
   { id: "suppliers", label: "Suppliers" },
+  { id: "dailyClose", label: "Daily Close" },
 ];
 
 const PAGES = {
@@ -25,6 +27,7 @@ const PAGES = {
   negativeStock: NegativeStockPage,
   purchases: PurchasesPage,
   suppliers: SuppliersPage,
+  dailyClose: DailyClosePage,
 };
 
 function App() {
