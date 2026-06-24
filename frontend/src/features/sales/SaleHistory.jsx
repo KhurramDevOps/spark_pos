@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Badge, Button, Select, TextInput } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
+import { saleItemsLabel } from "@shared/sales/itemsLabel.js";
 import { useSales, useCustomers } from "./hooks";
 import SaleDetail from "./SaleDetail";
 
@@ -99,6 +100,7 @@ export default function SaleHistory() {
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-4 py-2.5 font-medium">Date</th>
+              <th className="px-4 py-2.5 font-medium">Items</th>
               <th className="px-4 py-2.5 font-medium">Customer</th>
               <th className="px-4 py-2.5 font-medium">Payment</th>
               <th className="px-4 py-2.5 text-right font-medium">Total</th>
@@ -107,12 +109,12 @@ export default function SaleHistory() {
           </thead>
           <tbody className="divide-y divide-gray-100">
             {isLoading ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">Loading…</td></tr>
             ) : isError ? (
-              <tr><td colSpan={5} className="px-4 py-10 text-center text-sm text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-600">{error.message}</td></tr>
             ) : sales.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={6} className="px-4 py-10 text-center text-sm text-gray-400">
                   {hasFilters ? "No sales match these filters." : "No sales yet. Ring one up on the Sales screen."}
                 </td>
               </tr>
@@ -122,6 +124,7 @@ export default function SaleHistory() {
                 return (
                   <tr key={s._id} onClick={() => setOpenId(s._id)} className="cursor-pointer hover:bg-gray-50">
                     <td className="px-4 py-2.5 text-gray-900">{formatDate(s.date)}</td>
+                    <td className="px-4 py-2.5 text-gray-700">{saleItemsLabel(s)}</td>
                     <td className="px-4 py-2.5 text-gray-700">{s.customerId?.name ?? "—"}</td>
                     <td className="px-4 py-2.5">
                       <span className="inline-flex items-center gap-1.5">

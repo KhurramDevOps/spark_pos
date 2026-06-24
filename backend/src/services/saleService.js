@@ -232,6 +232,9 @@ export async function listSales({ customerId, from, to, paymentType, page = 1, l
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
       .populate("customerId", "name")
+      // Line item names for the history list's "Items" column (current name; items
+      // are deactivated, never hard-deleted, so the ref stays resolvable).
+      .populate("lines.itemId", "name")
       .lean(),
     Sale.countDocuments(query),
   ]);
