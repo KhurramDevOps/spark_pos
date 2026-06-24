@@ -94,18 +94,18 @@ export default function ImportModal({ onClose }) {
   function renderUpload() {
     return (
       <form id="import-upload" onSubmit={handlePreview} className="space-y-4">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-fg-muted">
           Prepare your file from the template, then upload it. You'll see a preview of exactly
           what will be created before anything is saved.
         </p>
         <a
           href={TEMPLATE_URL}
           download
-          className="inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+          className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent"
         >
           ↓ Download template CSV
         </a>
-        <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-500">
+        <div className="rounded-md bg-muted p-3 text-xs text-fg-muted">
           Tip: in Excel, format the <span className="font-medium">sku</span> and number columns as
           <span className="font-medium"> Text</span>, and save as plain CSV. Prices are in rupees;
           leave <span className="font-medium">sku</span> blank to auto-generate one. To declare stock
@@ -117,7 +117,7 @@ export default function ImportModal({ onClose }) {
           type="file"
           accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100"
+          className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent hover:file:bg-indigo-100"
         />
       </form>
     );
@@ -146,8 +146,8 @@ export default function ImportModal({ onClose }) {
         </p>
 
         {newCategories.length > 0 && (
-          <div className="text-sm text-gray-600">
-            <span className="font-medium text-gray-700">New categories: </span>
+          <div className="text-sm text-fg-muted">
+            <span className="font-medium text-fg-muted">New categories: </span>
             {newCategories.join(", ")}
           </div>
         )}
@@ -158,12 +158,12 @@ export default function ImportModal({ onClose }) {
           </p>
         ) : (
           <>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-fg-muted">
               {summary.toCreate} row(s) will be created. The rows below need attention:
             </p>
-            <div className="max-h-72 overflow-y-auto rounded-md border border-gray-200">
+            <div className="max-h-72 overflow-y-auto rounded-md border border-line">
               <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <thead className="sticky top-0 bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                   <tr>
                     <th className="px-3 py-2 font-medium">Row</th>
                     <th className="px-3 py-2 font-medium">Name</th>
@@ -171,15 +171,15 @@ export default function ImportModal({ onClose }) {
                     <th className="px-3 py-2 font-medium">Detail</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line">
                   {attention.map((r) => (
                     <tr key={r.rowNumber}>
-                      <td className="px-3 py-2 tabular-nums text-gray-500">{r.rowNumber}</td>
-                      <td className="px-3 py-2 text-gray-900">{r.name || <span className="text-gray-400">—</span>}</td>
+                      <td className="px-3 py-2 tabular-nums text-fg-muted">{r.rowNumber}</td>
+                      <td className="px-3 py-2 text-fg">{r.name || <span className="text-fg-subtle">—</span>}</td>
                       <td className="px-3 py-2">
                         {r.status === "error" ? <Badge tone="red">error</Badge> : <Badge tone="amber">warning</Badge>}
                       </td>
-                      <td className="px-3 py-2 text-xs text-gray-600">
+                      <td className="px-3 py-2 text-xs text-fg-muted">
                         {[...r.errors, ...r.warnings].join("; ")}
                       </td>
                     </tr>
@@ -202,7 +202,7 @@ export default function ImportModal({ onClose }) {
           {counts.skipped > 0 && <Badge tone="red">{counts.skipped} skipped</Badge>}
           {counts.newCategories > 0 && <Badge tone="gray">{counts.newCategories} new categor{counts.newCategories === 1 ? "y" : "ies"}</Badge>}
         </div>
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-fg-muted">
           {counts.created} item(s) imported.
           {counts.skipped > 0 ? ` ${counts.skipped} row(s) were skipped.` : ""}
         </p>

@@ -61,12 +61,12 @@ export default function SaleDetail({ saleId, onClose }) {
 
   return (
     <Modal title="Sale" onClose={onClose} footer={footer}>
-      {isLoading && <p className="text-sm text-gray-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error.message}</p>}
       {s && (
         <div className="space-y-4">
           {voided && (
-            <div className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-fg-muted">
               <Badge tone="gray">Voided</Badge>
               <span>This sale was voided{s.voidedAt ? ` on ${formatDate(s.voidedAt)}` : ""} — its stock and khata effect were undone.</span>
             </div>
@@ -84,27 +84,27 @@ export default function SaleDetail({ saleId, onClose }) {
           {voidMut.isError && <ErrorText>{voidMut.error.message}</ErrorText>}
 
           <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <span className="text-gray-500">Date</span>
-            <span className="text-right text-gray-900">{formatDate(s.date)}</span>
-            <span className="text-gray-500">Customer</span>
-            <span className="text-right text-gray-900">{s.customerId?.name ?? "—"}</span>
-            <span className="text-gray-500">Payment</span>
+            <span className="text-fg-muted">Date</span>
+            <span className="text-right text-fg">{formatDate(s.date)}</span>
+            <span className="text-fg-muted">Customer</span>
+            <span className="text-right text-fg">{s.customerId?.name ?? "—"}</span>
+            <span className="text-fg-muted">Payment</span>
             <span className="text-right">
               {s.paymentType === "credit" ? <Badge tone="amber">Credit</Badge> : <Badge tone="green">Cash</Badge>}
             </span>
-            <span className="text-gray-500">Price mode</span>
-            <span className="text-right text-gray-700 capitalize">{s.priceMode}</span>
+            <span className="text-fg-muted">Price mode</span>
+            <span className="text-right text-fg-muted capitalize">{s.priceMode}</span>
             {s.note && (
               <>
-                <span className="text-gray-500">Note</span>
-                <span className="text-right text-gray-700">{s.note}</span>
+                <span className="text-fg-muted">Note</span>
+                <span className="text-right text-fg-muted">{s.note}</span>
               </>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-md border border-gray-200">
+          <div className="overflow-hidden rounded-md border border-line">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Item</th>
                   <th className="px-3 py-2 text-right font-medium">Qty</th>
@@ -113,7 +113,7 @@ export default function SaleDetail({ saleId, onClose }) {
                   <th className="px-3 py-2 text-right font-medium">Profit</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {s.lines.map((l, i) => {
                   const price = Number(decimalText(l.unitPrice));
                   const cost = Number(decimalText(l.costAtTime));
@@ -122,17 +122,17 @@ export default function SaleDetail({ saleId, onClose }) {
                   const belowCost = price < cost;
                   return (
                     <tr key={i}>
-                      <td className="px-3 py-2 text-gray-900">
+                      <td className="px-3 py-2 text-fg">
                         {l.itemId?.name ?? "—"}
-                        {l.itemId?.sku && <span className="ml-1 text-xs text-gray-400">{l.itemId.sku}</span>}
+                        {l.itemId?.sku && <span className="ml-1 text-xs text-fg-subtle">{l.itemId.sku}</span>}
                         {belowCost && <span className="ml-2"><Badge tone="red">below cost</Badge></span>}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {decimalText(l.qty)}
-                        {l.itemId?.baseUnit && <span className="ml-1 text-xs text-gray-400">{l.itemId.baseUnit}</span>}
+                        {l.itemId?.baseUnit && <span className="ml-1 text-xs text-fg-subtle">{l.itemId.baseUnit}</span>}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{rsFromPaisa(price)}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-gray-500">{rsFromPaisa(cost)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-fg-muted">{rsFromPaisa(cost)}</td>
                       <td className={`px-3 py-2 text-right tabular-nums font-medium ${profit < 0 ? "text-red-600" : "text-green-700"}`}>
                         {formatPaisa(Math.round((price - cost) * qty))}
                       </td>
@@ -140,10 +140,10 @@ export default function SaleDetail({ saleId, onClose }) {
                   );
                 })}
               </tbody>
-              <tfoot className="border-t border-gray-200 bg-gray-50">
+              <tfoot className="border-t border-line bg-muted">
                 <tr>
-                  <td colSpan={3} className="px-3 py-2 text-right font-medium text-gray-700">Total</td>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900">
+                  <td colSpan={3} className="px-3 py-2 text-right font-medium text-fg-muted">Total</td>
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-fg">
                     {formatPaisa(decimalText(s.total))}
                   </td>
                   <td className={`px-3 py-2 text-right font-semibold tabular-nums ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>
@@ -156,12 +156,12 @@ export default function SaleDetail({ saleId, onClose }) {
 
           {hasReturns && (
             <div>
-              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-500">
+              <div className="mb-1 text-xs font-medium uppercase tracking-wide text-fg-muted">
                 Returns against this sale
               </div>
-              <div className="overflow-hidden rounded-md border border-gray-200">
+              <div className="overflow-hidden rounded-md border border-line">
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                  <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                     <tr>
                       <th className="px-3 py-2 font-medium">Date</th>
                       <th className="px-3 py-2 font-medium">Items returned</th>
@@ -169,11 +169,11 @@ export default function SaleDetail({ saleId, onClose }) {
                       <th className="px-3 py-2 text-right font-medium">Refunded</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-line">
                     {returns.map((r) => (
                       <tr key={r._id}>
-                        <td className="px-3 py-2 text-gray-700">{formatDate(r.date)}</td>
-                        <td className="px-3 py-2 text-gray-900">
+                        <td className="px-3 py-2 text-fg-muted">{formatDate(r.date)}</td>
+                        <td className="px-3 py-2 text-fg">
                           {r.lines.map((l) => `${l.itemId?.name ?? "—"} ×${decimalText(l.qty)}`).join(", ")}
                         </td>
                         <td className="px-3 py-2">
@@ -181,7 +181,7 @@ export default function SaleDetail({ saleId, onClose }) {
                             ? <Badge tone="amber">khata credit</Badge>
                             : <Badge tone="green">cash</Badge>}
                         </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-gray-900">
+                        <td className="px-3 py-2 text-right tabular-nums text-fg">
                           {formatPaisa(decimalText(r.total))}
                         </td>
                       </tr>

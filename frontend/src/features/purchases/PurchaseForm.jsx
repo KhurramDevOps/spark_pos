@@ -98,25 +98,25 @@ export default function PurchaseForm({ onClose }) {
         footer={<Button onClick={onClose}>Done</Button>}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-fg-muted">
             Stock increased and weighted-average cost updated for{" "}
             {result.items.length} item(s):
           </p>
-          <div className="overflow-hidden rounded-md border border-gray-200">
+          <div className="overflow-hidden rounded-md border border-line">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Item</th>
                   <th className="px-3 py-2 font-medium text-right">New stock</th>
                   <th className="px-3 py-2 font-medium text-right">New avg cost</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {result.items.map((it) => (
                   <tr key={it._id}>
-                    <td className="px-3 py-2 text-gray-900">{it.name}</td>
+                    <td className="px-3 py-2 text-fg">{it.name}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {decimalText(it.stockQty)} <span className="text-xs text-gray-400">{it.baseUnit}</span>
+                      {decimalText(it.stockQty)} <span className="text-xs text-fg-subtle">{it.baseUnit}</span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium">
                       {formatPaisa(decimalText(it.avgCost))}
@@ -170,15 +170,15 @@ export default function PurchaseForm({ onClose }) {
         {/* Line items — the main event */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Items</span>
-            <button type="button" className="text-sm font-medium text-indigo-600 hover:text-indigo-700" onClick={addLine}>
+            <span className="text-sm font-medium text-fg-muted">Items</span>
+            <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addLine}>
               + Add line
             </button>
           </div>
           {lines.map((l, idx) => {
             const lt = lineRupees(l);
             return (
-              <div key={l.key} className="rounded-md border border-gray-200 p-2">
+              <div key={l.key} className="rounded-md border border-line p-2">
                 <div className="mb-2">
                   <ItemPicker
                     selected={l.item}
@@ -189,13 +189,13 @@ export default function PurchaseForm({ onClose }) {
                 </div>
                 <div className="flex items-end gap-2">
                   <div className="flex-1">
-                    <span className="mb-1 block text-xs text-gray-500">
+                    <span className="mb-1 block text-xs text-fg-muted">
                       Quantity{l.item ? ` (${l.item.baseUnit})` : ""}
                     </span>
                     <TextInput value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} placeholder="e.g. 100" />
                   </div>
                   <div className="flex-1">
-                    <span className="mb-1 block text-xs text-gray-500">Unit cost (Rs)</span>
+                    <span className="mb-1 block text-xs text-fg-muted">Unit cost (Rs)</span>
                     <TextInput
                       type="number"
                       step="0.01"
@@ -205,12 +205,12 @@ export default function PurchaseForm({ onClose }) {
                       placeholder="110.50"
                     />
                   </div>
-                  <div className="w-28 pb-2 text-right text-sm tabular-nums text-gray-700">
+                  <div className="w-28 pb-2 text-right text-sm tabular-nums text-fg-muted">
                     {lt != null ? `Rs ${lt.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}
                   </div>
                   <button
                     type="button"
-                    className="pb-2 text-gray-400 hover:text-red-600 disabled:opacity-30"
+                    className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
                     onClick={() => removeLine(l.key)}
                     disabled={lines.length <= 1}
                     aria-label="Remove line"
@@ -222,23 +222,23 @@ export default function PurchaseForm({ onClose }) {
             );
           })}
           <div className="flex justify-end pr-8 text-sm">
-            <span className="text-gray-500">Grand total:&nbsp;</span>
-            <span className="font-semibold tabular-nums text-gray-900">
+            <span className="text-fg-muted">Grand total:&nbsp;</span>
+            <span className="font-semibold tabular-nums text-fg">
               Rs {grandRupees.toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           </div>
         </div>
 
         {/* Supplier — optional, present but not in the way */}
-        <div className="rounded-md bg-gray-50 p-3">
+        <div className="rounded-md bg-muted p-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
-              Supplier {paymentType === "credit" ? <span className="text-red-600">(required for credit)</span> : <span className="text-gray-400">(optional)</span>}
+            <span className="text-sm font-medium text-fg-muted">
+              Supplier {paymentType === "credit" ? <span className="text-red-600">(required for credit)</span> : <span className="text-fg-subtle">(optional)</span>}
             </span>
             {!newSupplier && (
               <button
                 type="button"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium text-accent hover:text-accent"
                 onClick={() => setNewSupplier({ name: "", openingBalance: "" })}
               >
                 + New supplier
@@ -255,7 +255,7 @@ export default function PurchaseForm({ onClose }) {
               />
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <span className="mb-1 block text-xs text-gray-500">Opening balance owed (Rs, optional)</span>
+                  <span className="mb-1 block text-xs text-fg-muted">Opening balance owed (Rs, optional)</span>
                   <TextInput
                     value={newSupplier.openingBalance}
                     onChange={(e) => setNewSupplier((s) => ({ ...s, openingBalance: e.target.value }))}

@@ -50,12 +50,12 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
 
   return (
     <Modal title="Purchase" onClose={onClose} footer={footer}>
-      {isLoading && <p className="text-sm text-gray-500">Loading…</p>}
+      {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error.message}</p>}
       {p && (
         <div className="space-y-4">
           {reversed && (
-            <div className="flex items-center gap-2 rounded-md bg-gray-100 px-3 py-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-fg-muted">
               <Badge tone="gray">Reversed</Badge>
               <span>
                 This purchase was reversed{p.reversedAt ? ` on ${formatDate(p.reversedAt)}` : ""} — its stock,
@@ -73,11 +73,11 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
           {reverseMut.isError && <ErrorText>{reverseMut.error.message}</ErrorText>}
 
           <div className="grid grid-cols-2 gap-y-2 text-sm">
-            <span className="text-gray-500">Date</span>
-            <span className="text-right text-gray-900">{formatDate(p.date)}</span>
-            <span className="text-gray-500">Supplier</span>
-            <span className="text-right text-gray-900">{p.supplierId?.name ?? "—"}</span>
-            <span className="text-gray-500">Payment</span>
+            <span className="text-fg-muted">Date</span>
+            <span className="text-right text-fg">{formatDate(p.date)}</span>
+            <span className="text-fg-muted">Supplier</span>
+            <span className="text-right text-fg">{p.supplierId?.name ?? "—"}</span>
+            <span className="text-fg-muted">Payment</span>
             <span className="text-right">
               {p.paymentType === "credit" ? (
                 <Badge tone="amber">Credit</Badge>
@@ -87,15 +87,15 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
             </span>
             {p.note && (
               <>
-                <span className="text-gray-500">Note</span>
-                <span className="text-right text-gray-700">{p.note}</span>
+                <span className="text-fg-muted">Note</span>
+                <span className="text-right text-fg-muted">{p.note}</span>
               </>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-md border border-gray-200">
+          <div className="overflow-hidden rounded-md border border-line">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Item</th>
                   <th className="px-3 py-2 text-right font-medium">Qty</th>
@@ -103,19 +103,19 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
                   <th className="px-3 py-2 text-right font-medium">Line total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {p.lines.map((l, i) => (
                   <tr key={i}>
-                    <td className="px-3 py-2 text-gray-900">
+                    <td className="px-3 py-2 text-fg">
                       {l.itemId?.name ?? "—"}
                       {l.itemId?.sku && (
-                        <span className="ml-1 text-xs text-gray-400">{l.itemId.sku}</span>
+                        <span className="ml-1 text-xs text-fg-subtle">{l.itemId.sku}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
                       {decimalText(l.qty)}
                       {l.itemId?.baseUnit && (
-                        <span className="ml-1 text-xs text-gray-400">{l.itemId.baseUnit}</span>
+                        <span className="ml-1 text-xs text-fg-subtle">{l.itemId.baseUnit}</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums">
@@ -127,12 +127,12 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
                   </tr>
                 ))}
               </tbody>
-              <tfoot className="border-t border-gray-200 bg-gray-50">
+              <tfoot className="border-t border-line bg-muted">
                 <tr>
-                  <td colSpan={3} className="px-3 py-2 text-right font-medium text-gray-700">
+                  <td colSpan={3} className="px-3 py-2 text-right font-medium text-fg-muted">
                     Total
                   </td>
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-gray-900">
+                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-fg">
                     {formatPaisa(decimalText(p.total))}
                   </td>
                 </tr>

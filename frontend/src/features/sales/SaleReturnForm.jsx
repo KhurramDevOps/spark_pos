@@ -111,11 +111,11 @@ export default function SaleReturnForm({ sale, onClose }) {
           <ErrorText><ul className="list-disc pl-4">{errors.map((e, i) => <li key={i}>{e}</li>)}</ul></ErrorText>
         )}
 
-        <p className="text-sm text-gray-500">How much of this sale is coming back?</p>
+        <p className="text-sm text-fg-muted">How much of this sale is coming back?</p>
 
-        <div className="overflow-hidden rounded-md border border-gray-200">
+        <div className="overflow-hidden rounded-md border border-line">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Item</th>
                 <th className="px-3 py-2 text-right font-medium">Returnable</th>
@@ -123,15 +123,15 @@ export default function SaleReturnForm({ sale, onClose }) {
                 <th className="px-3 py-2 text-right font-medium">Return qty</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line">
               {rows.map((r) => (
                 <tr key={r.itemId}>
-                  <td className="px-3 py-2 text-gray-900">{r.name}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{r.remaining} {r.baseUnit}</td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-500">{rs(r.unitPrice)}</td>
+                  <td className="px-3 py-2 text-fg">{r.name}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-fg-muted">{r.remaining} {r.baseUnit}</td>
+                  <td className="px-3 py-2 text-right tabular-nums text-fg-muted">{rs(r.unitPrice)}</td>
                   <td className="px-3 py-2 text-right">
                     <input
-                      className="w-24 rounded-md border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-50"
+                      className="w-24 rounded-md border border-line px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-muted"
                       value={r.qty}
                       onChange={(e) => setQty(r.itemId, e.target.value)}
                       placeholder="0"

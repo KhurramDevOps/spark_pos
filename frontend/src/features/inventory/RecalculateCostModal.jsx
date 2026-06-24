@@ -24,11 +24,11 @@ export default function RecalculateCostModal({ item, onClose }) {
 
   const Row = ({ label, before, after, changed }) => (
     <tr>
-      <td className="px-3 py-2 text-gray-500">{label}</td>
-      <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 line-through" : "text-gray-700"}`}>
+      <td className="px-3 py-2 text-fg-muted">{label}</td>
+      <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 line-through" : "text-fg-muted"}`}>
         {before}
       </td>
-      <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700" : "text-gray-700"}`}>
+      <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700" : "text-fg-muted"}`}>
         {after}
       </td>
     </tr>
@@ -53,14 +53,14 @@ export default function RecalculateCostModal({ item, onClose }) {
     >
       <div className="space-y-4">
         <div>
-          <div className="text-sm font-medium text-gray-900">{item.name}</div>
-          <div className="font-mono text-xs text-gray-500">{item.sku}</div>
+          <div className="text-sm font-medium text-fg">{item.name}</div>
+          <div className="font-mono text-xs text-fg-muted">{item.sku}</div>
         </div>
 
         {serverError && <ErrorText>{serverError}</ErrorText>}
 
         {!report ? (
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-fg-muted">
             Re-derive this item's average cost and stock by replaying its full movement history
             (purchases, adjustments, returns, reversals). If the cached values have drifted, they'll
             be corrected. Owner-only.
@@ -74,16 +74,16 @@ export default function RecalculateCostModal({ item, onClose }) {
                 <Badge tone="green">No drift — already correct</Badge>
               )}
             </div>
-            <div className="overflow-hidden rounded-md border border-gray-200">
+            <div className="overflow-hidden rounded-md border border-line">
               <table className="w-full text-sm">
-                <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+                <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                   <tr>
                     <th className="px-3 py-2 font-medium"></th>
                     <th className="px-3 py-2 text-right font-medium">Was (cached)</th>
                     <th className="px-3 py-2 text-right font-medium">Now (replayed)</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-line">
                   <Row
                     label="Avg cost"
                     before={formatPaisa(report.before.avgCost)}
@@ -100,7 +100,7 @@ export default function RecalculateCostModal({ item, onClose }) {
               </table>
             </div>
             {!report.changed && (
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-fg-muted">
                 The cached values already match the movement history — nothing to fix.
               </p>
             )}

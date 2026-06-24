@@ -20,16 +20,16 @@ export default function ItemPerformance({ items, deadStock }) {
   const rows = showAll ? sorted : sorted.slice(0, 20);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
+    <div className="rounded-lg border border-line bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-900">Item performance</h2>
+        <h2 className="text-sm font-semibold text-fg">Item performance</h2>
         <div className="flex gap-1">
           {SORTS.map((s) => (
             <button
               key={s.key}
               onClick={() => setSortKey(s.key)}
               className={`rounded px-2 py-1 text-xs font-medium ${
-                sortKey === s.key ? "bg-indigo-50 text-indigo-700" : "text-gray-500 hover:text-gray-700"
+                sortKey === s.key ? "bg-indigo-50 text-accent" : "text-fg-muted hover:text-fg-muted"
               }`}
             >
               {s.label}
@@ -39,12 +39,12 @@ export default function ItemPerformance({ items, deadStock }) {
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-gray-500">No sales in this window.</p>
+        <p className="text-sm text-fg-muted">No sales in this window.</p>
       ) : (
         <>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
+              <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-fg-muted">
                 <th className="py-1.5">Item</th>
                 <th className="py-1.5">SKU</th>
                 <th className="py-1.5 text-right">Qty sold</th>
@@ -53,28 +53,28 @@ export default function ItemPerformance({ items, deadStock }) {
                 <th className="py-1.5 text-right">Stock</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line">
               {rows.map((r) => (
                 <tr key={r.itemId}>
-                  <td className="py-1.5 text-gray-900">
+                  <td className="py-1.5 text-fg">
                     <span className="flex items-center gap-2">
                       <ItemImage image={r.image} size={32} alt={r.name} />
                       <span>{r.name}</span>
                     </span>
                   </td>
-                  <td className="py-1.5 text-gray-500">{r.sku}</td>
+                  <td className="py-1.5 text-fg-muted">{r.sku}</td>
                   <td className="py-1.5 text-right tabular-nums">{decimalText(r.qtySold)}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatPaisa(r.revenue)}</td>
-                  <td className={`py-1.5 text-right tabular-nums ${num(r.grossProfit) < 0 ? "text-red-600" : "text-gray-900"}`}>
+                  <td className={`py-1.5 text-right tabular-nums ${num(r.grossProfit) < 0 ? "text-red-600" : "text-fg"}`}>
                     {formatPaisa(r.grossProfit)}
                   </td>
-                  <td className="py-1.5 text-right tabular-nums text-gray-600">{decimalText(r.stock)}</td>
+                  <td className="py-1.5 text-right tabular-nums text-fg-muted">{decimalText(r.stock)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
           {sorted.length > 20 && (
-            <button onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs font-medium text-indigo-600 hover:underline">
+            <button onClick={() => setShowAll((v) => !v)} className="mt-2 text-xs font-medium text-accent hover:underline">
               {showAll ? "Show top 20" : `Show all ${sorted.length}`}
             </button>
           )}
@@ -82,19 +82,19 @@ export default function ItemPerformance({ items, deadStock }) {
       )}
 
       <div className="mt-5">
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-fg-muted">
           Dead stock — in stock, no sales this window
         </h3>
         {deadStock.length === 0 ? (
-          <p className="text-sm text-gray-400">None — everything in stock sold at least once.</p>
+          <p className="text-sm text-fg-subtle">None — everything in stock sold at least once.</p>
         ) : (
-          <ul className="divide-y divide-gray-100 text-sm">
+          <ul className="divide-y divide-line text-sm">
             {deadStock.map((d) => (
               <li key={d.itemId} className="flex justify-between py-1.5">
-                <span className="text-gray-700">
-                  {d.name} <span className="text-gray-400">{d.sku}</span>
+                <span className="text-fg-muted">
+                  {d.name} <span className="text-fg-subtle">{d.sku}</span>
                 </span>
-                <span className="tabular-nums text-gray-600">{decimalText(d.stock)} in stock</span>
+                <span className="tabular-nums text-fg-muted">{decimalText(d.stock)} in stock</span>
               </li>
             ))}
           </ul>

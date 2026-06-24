@@ -164,11 +164,11 @@ export default function ItemForm({ item, categories, onClose }) {
         </div>
 
         {!isEdit && (
-          <div className="rounded-md border border-gray-200 p-3">
+          <div className="rounded-md border border-line p-3">
             {!showOpening ? (
               <button
                 type="button"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium text-accent hover:text-accent"
                 onClick={() => setShowOpening(true)}
               >
                 + Declare opening stock
@@ -176,10 +176,10 @@ export default function ItemForm({ item, categories, onClose }) {
             ) : (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-700">Opening stock</span>
+                  <span className="text-sm font-medium text-fg-muted">Opening stock</span>
                   <button
                     type="button"
-                    className="text-xs text-gray-400 hover:text-gray-600"
+                    className="text-xs text-fg-subtle hover:text-fg-muted"
                     onClick={() => {
                       setShowOpening(false);
                       setForm((f) => ({ ...f, openingQty: "0" }));
@@ -189,7 +189,7 @@ export default function ItemForm({ item, categories, onClose }) {
                     Remove
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-fg-muted">
                   Declare inventory you already have, with its real per-unit cost — no fake purchase
                   needed. Both fields are required together.
                 </p>
@@ -227,7 +227,7 @@ export default function ItemForm({ item, categories, onClose }) {
           ) : (
             <>
               <TextInput value={form.imageUrl} onChange={set("imageUrl")} placeholder="Paste an image URL (https://…)" />
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="mt-1 text-xs text-fg-subtle">
                 Uploading from your computer becomes available once the item is created.
               </p>
             </>

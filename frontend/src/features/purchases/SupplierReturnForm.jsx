@@ -58,25 +58,25 @@ export default function SupplierReturnForm({ supplier, onClose }) {
         footer={<Button onClick={onClose}>Done</Button>}
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-fg-muted">
             Stock reduced for {result.items.length} item(s). Average cost is unchanged — a return
             removes stock at the current average.
           </p>
-          <div className="overflow-hidden rounded-md border border-gray-200">
+          <div className="overflow-hidden rounded-md border border-line">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Item</th>
                   <th className="px-3 py-2 text-right font-medium">New stock</th>
                   <th className="px-3 py-2 text-right font-medium">Avg cost (unchanged)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {result.items.map((it) => (
                   <tr key={it._id}>
-                    <td className="px-3 py-2 text-gray-900">{it.name}</td>
+                    <td className="px-3 py-2 text-fg">{it.name}</td>
                     <td className="px-3 py-2 text-right tabular-nums">
-                      {decimalText(it.stockQty)} <span className="text-xs text-gray-400">{it.baseUnit}</span>
+                      {decimalText(it.stockQty)} <span className="text-xs text-fg-subtle">{it.baseUnit}</span>
                     </td>
                     <td className="px-3 py-2 text-right tabular-nums font-medium">
                       {formatPaisa(decimalText(it.avgCost))}
@@ -120,20 +120,20 @@ export default function SupplierReturnForm({ supplier, onClose }) {
           </ErrorText>
         )}
 
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-fg-muted">
           Send stock back to {supplier.name}. This reduces stock and what you owe; the item's
           average cost stays the same.
         </p>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">Items to return</span>
-            <button type="button" className="text-sm font-medium text-indigo-600 hover:text-indigo-700" onClick={addLine}>
+            <span className="text-sm font-medium text-fg-muted">Items to return</span>
+            <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addLine}>
               + Add line
             </button>
           </div>
           {lines.map((l, idx) => (
-            <div key={l.key} className="rounded-md border border-gray-200 p-2">
+            <div key={l.key} className="rounded-md border border-line p-2">
               <div className="mb-2">
                 <ItemPicker
                   selected={l.item}
@@ -144,14 +144,14 @@ export default function SupplierReturnForm({ supplier, onClose }) {
               </div>
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <span className="mb-1 block text-xs text-gray-500">
+                  <span className="mb-1 block text-xs text-fg-muted">
                     Quantity to return{l.item ? ` (${l.item.baseUnit})` : ""}
                   </span>
                   <TextInput value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} placeholder="e.g. 30" />
                 </div>
                 <button
                   type="button"
-                  className="pb-2 text-gray-400 hover:text-red-600 disabled:opacity-30"
+                  className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
                   onClick={() => removeLine(l.key)}
                   disabled={lines.length <= 1}
                   aria-label="Remove line"

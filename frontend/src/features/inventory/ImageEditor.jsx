@@ -95,11 +95,11 @@ export default function ImageEditor({ item }) {
             doUpload(e.dataTransfer.files?.[0]);
           }}
           className={`flex-1 rounded border-2 border-dashed p-3 text-center text-xs transition ${
-            dragOver ? "border-indigo-400 bg-indigo-50" : "border-gray-200"
+            dragOver ? "border-indigo-400 bg-indigo-50" : "border-line"
           }`}
         >
           Drag an image here, or{" "}
-          <label className="cursor-pointer font-medium text-indigo-600 hover:underline">
+          <label className="cursor-pointer font-medium text-accent hover:underline">
             browse
             <input
               type="file"
@@ -108,7 +108,7 @@ export default function ImageEditor({ item }) {
               onChange={(e) => doUpload(e.target.files?.[0])}
             />
           </label>
-          <p className="mt-0.5 text-gray-400">JPEG / PNG / WebP, up to 10 MB. Resized automatically.</p>
+          <p className="mt-0.5 text-fg-subtle">JPEG / PNG / WebP, up to 10 MB. Resized automatically.</p>
         </div>
       </div>
 
@@ -125,9 +125,9 @@ export default function ImageEditor({ item }) {
             Remove image
           </button>
         )}
-        {busy && <span className="text-xs text-gray-400">Working…</span>}
+        {busy && <span className="text-xs text-fg-subtle">Working…</span>}
         {notice && <span className="text-xs font-medium text-green-600">{notice}</span>}
-        {url && !notice && <span className="text-xs text-gray-400">URLs can rot — a dead link falls back to the placeholder.</span>}
+        {url && !notice && <span className="text-xs text-fg-subtle">URLs can rot — a dead link falls back to the placeholder.</span>}
       </div>
 
       {error && <ErrorText>{error}</ErrorText>}

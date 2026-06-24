@@ -138,9 +138,9 @@ export default function SalesPage() {
         <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
           Sale recorded — {sale.paymentType === "credit" ? "added to khata" : "cash"}. Stock updated.
         </div>
-        <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="mt-4 overflow-hidden rounded-lg border border-line bg-surface">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+            <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Item</th>
                 <th className="px-3 py-2 text-right font-medium">Qty</th>
@@ -149,7 +149,7 @@ export default function SalesPage() {
                 <th className="px-3 py-2 text-right font-medium">Profit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-line">
               {sale.lines.map((l, i) => {
                 const price = Number(decimalText(l.unitPrice));
                 const cost = Number(decimalText(l.costAtTime));
@@ -157,7 +157,7 @@ export default function SalesPage() {
                 const lp = ((price - cost) * qty) / 100;
                 return (
                   <tr key={i}>
-                    <td className="px-3 py-2 text-gray-900">{nameById[l.itemId] ?? l.itemId?.name ?? "—"}</td>
+                    <td className="px-3 py-2 text-fg">{nameById[l.itemId] ?? l.itemId?.name ?? "—"}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{qty}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(price / 100)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(Number(decimalText(l.lineTotal)) / 100)}</td>
@@ -168,17 +168,17 @@ export default function SalesPage() {
                 );
               })}
             </tbody>
-            <tfoot className="border-t border-gray-200 bg-gray-50 font-medium">
+            <tfoot className="border-t border-line bg-muted font-medium">
               <tr>
-                <td colSpan={3} className="px-3 py-2 text-right text-gray-700">Total</td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-900">{rs(Number(decimalText(sale.total)) / 100)}</td>
+                <td colSpan={3} className="px-3 py-2 text-right text-fg-muted">Total</td>
+                <td className="px-3 py-2 text-right tabular-nums text-fg">{rs(Number(decimalText(sale.total)) / 100)}</td>
                 <td className={`px-3 py-2 text-right tabular-nums ${profit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(profit)}</td>
               </tr>
             </tfoot>
           </table>
         </div>
         {customer && (
-          <p className="mt-3 text-sm text-gray-600">
+          <p className="mt-3 text-sm text-fg-muted">
             {customer.name}'s khata balance is now{" "}
             <span className="font-medium">{rs(Number(decimalText(customer.balance)) / 100)}</span>.
           </p>
@@ -196,15 +196,15 @@ export default function SalesPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">New sale</h1>
-        <div className="inline-flex rounded-md border border-gray-300 p-0.5 text-sm">
+        <h1 className="text-xl font-semibold text-fg">New sale</h1>
+        <div className="inline-flex rounded-md border border-line p-0.5 text-sm">
           {["retail", "wholesale"].map((m) => (
             <button
               key={m}
               type="button"
               onClick={() => changePriceMode(m)}
               className={`rounded px-3 py-1 font-medium capitalize ${
-                priceMode === m ? "bg-indigo-600 text-white" : "text-gray-600 hover:bg-gray-100"
+                priceMode === m ? "bg-indigo-600 text-white" : "text-fg-muted hover:bg-muted"
               }`}
             >
               {m}
@@ -229,7 +229,7 @@ export default function SalesPage() {
               <div
                 key={l.key}
                 className={`rounded-md border p-2 ${
-                  c.belowCost ? "border-red-300 bg-red-50/40" : "border-gray-200"
+                  c.belowCost ? "border-red-300 bg-red-50/40" : "border-line"
                 }`}
               >
                 <div className="mb-2">
@@ -241,7 +241,7 @@ export default function SalesPage() {
                   />
                 </div>
                 {l.item && (
-                  <div className="mb-1 flex items-center gap-2 text-xs text-gray-400">
+                  <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
                     <span>in stock: {decimalText(l.item.stockQty)} {l.item.baseUnit}</span>
                     <span>·</span>
                     <span>cost {rs(Number(decimalText(l.item.avgCost)) / 100)}</span>
@@ -249,11 +249,11 @@ export default function SalesPage() {
                 )}
                 <div className="flex items-end gap-2">
                   <div className="w-24">
-                    <span className="mb-1 block text-xs text-gray-500">Qty{l.item ? ` (${l.item.baseUnit})` : ""}</span>
+                    <span className="mb-1 block text-xs text-fg-muted">Qty{l.item ? ` (${l.item.baseUnit})` : ""}</span>
                     <TextInput value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} placeholder="1" />
                   </div>
                   <div className="flex-1">
-                    <span className="mb-1 block text-xs text-gray-500">Unit price (Rs)</span>
+                    <span className="mb-1 block text-xs text-fg-muted">Unit price (Rs)</span>
                     <TextInput
                       type="number"
                       step="0.01"
@@ -263,12 +263,12 @@ export default function SalesPage() {
                       placeholder="0.00"
                     />
                   </div>
-                  <div className="w-28 pb-2 text-right text-sm tabular-nums text-gray-700">
+                  <div className="w-28 pb-2 text-right text-sm tabular-nums text-fg-muted">
                     {c.lineTotal != null ? rs(c.lineTotal) : "—"}
                   </div>
                   <button
                     type="button"
-                    className="pb-2 text-gray-400 hover:text-red-600 disabled:opacity-30"
+                    className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
                     onClick={() => removeLine(l.key)}
                     disabled={lines.length <= 1}
                     aria-label="Remove line"
@@ -285,7 +285,7 @@ export default function SalesPage() {
               </div>
             );
           })}
-          <button type="button" className="text-sm font-medium text-indigo-600 hover:text-indigo-700" onClick={addLine}>
+          <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addLine}>
             + Add item
           </button>
         </div>
@@ -293,32 +293,32 @@ export default function SalesPage() {
         {/* Secondary fields — quieted so the cart + checkout dominate the eye path. */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <span className="mb-1 block text-xs text-gray-500">Payment</span>
+            <span className="mb-1 block text-xs text-fg-muted">Payment</span>
             <Select value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
               <option value="cash">Cash</option>
               <option value="credit">Credit (udhaar)</option>
             </Select>
           </div>
           <div>
-            <span className="mb-1 block text-xs text-gray-500">Note (optional)</span>
+            <span className="mb-1 block text-xs text-fg-muted">Note (optional)</span>
             <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. delivered" />
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between">
-            <span className="text-xs text-gray-500">
+            <span className="text-xs text-fg-muted">
               Customer{" "}
               {paymentType === "credit" ? (
                 <span className="text-red-600">(required for credit)</span>
               ) : (
-                <span className="text-gray-400">(optional)</span>
+                <span className="text-fg-subtle">(optional)</span>
               )}
             </span>
             {!newCustomer && (
               <button
                 type="button"
-                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                className="text-sm font-medium text-accent hover:text-accent"
                 onClick={() => setNewCustomer({ name: "", openingBalance: "" })}
               >
                 + New customer
@@ -335,7 +335,7 @@ export default function SalesPage() {
               />
               <div className="flex items-end gap-2">
                 <div className="flex-1">
-                  <span className="mb-1 block text-xs text-gray-500">Opening balance owed (Rs, optional)</span>
+                  <span className="mb-1 block text-xs text-fg-muted">Opening balance owed (Rs, optional)</span>
                   <TextInput
                     value={newCustomer.openingBalance}
                     onChange={(e) => setNewCustomer((s) => ({ ...s, openingBalance: e.target.value }))}
@@ -362,16 +362,16 @@ export default function SalesPage() {
 
         {/* Checkout: the eye path ends here — dominant Total to read aloud, then Complete.
             Profit is a small subordinate line (margin awareness, not the headline). */}
-        <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="rounded-lg border border-line bg-surface p-4">
           <div className="flex items-end justify-between gap-4">
             <div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-fg-muted">
                 Profit{" "}
                 <span className={`font-medium ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(totalProfit)}</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-2">
-                <span className="text-sm text-gray-500">Total</span>
-                <span className="text-3xl font-semibold tabular-nums text-gray-900">{rs(grandTotal)}</span>
+                <span className="text-sm text-fg-muted">Total</span>
+                <span className="text-3xl font-semibold tabular-nums text-fg">{rs(grandTotal)}</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">

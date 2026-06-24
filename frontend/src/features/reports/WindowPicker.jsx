@@ -15,13 +15,13 @@ export default function WindowPicker({ value, onChange }) {
   const set = (patch) => onChange({ ...value, ...patch });
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5">
+      <div className="inline-flex rounded-lg border border-line bg-surface p-0.5">
         {PRESETS.map((p) => (
           <button
             key={p.id}
             onClick={() => set({ window: p.id })}
             className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
-              value.window === p.id ? "bg-indigo-600 text-white" : "text-gray-600 hover:text-gray-900"
+              value.window === p.id ? "bg-indigo-600 text-white" : "text-fg-muted hover:text-fg"
             }`}
           >
             {p.label}
@@ -30,11 +30,11 @@ export default function WindowPicker({ value, onChange }) {
       </div>
       {value.window === "custom" && (
         <div className="flex items-end gap-2">
-          <label className="text-xs text-gray-500">
+          <label className="text-xs text-fg-muted">
             From
             <TextInput type="date" max={today()} value={value.start ?? ""} onChange={(e) => set({ start: e.target.value })} />
           </label>
-          <label className="text-xs text-gray-500">
+          <label className="text-xs text-fg-muted">
             To
             <TextInput type="date" max={today()} value={value.end ?? ""} onChange={(e) => set({ end: e.target.value })} />
           </label>

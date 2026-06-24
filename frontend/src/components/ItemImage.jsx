@@ -14,7 +14,7 @@ function Placeholder({ size, className }) {
   return (
     <div
       style={{ width: size, height: size }}
-      className={`flex shrink-0 items-center justify-center rounded bg-gray-100 text-gray-300 ${className}`}
+      className={`flex shrink-0 items-center justify-center rounded bg-muted text-fg-subtle ${className}`}
       aria-hidden="true"
     >
       <svg width={Math.round(size * 0.5)} height={Math.round(size * 0.5)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -75,7 +75,7 @@ export default function ItemImage({ image, size = 48, hover = false, previewSize
       onError={() => setFailed(true)}
       onMouseEnter={hover ? showPreview : undefined}
       onMouseLeave={hover ? hidePreview : undefined}
-      className={`shrink-0 rounded bg-gray-50 object-cover ${className}`}
+      className={`shrink-0 rounded bg-muted object-cover ${className}`}
     />
   );
 
@@ -86,7 +86,7 @@ export default function ItemImage({ image, size = 48, hover = false, previewSize
       {thumb}
       {preview && (
         <div
-          className="item-image-preview pointer-events-none fixed rounded-lg border border-gray-200 bg-white p-1 shadow-xl"
+          className="item-image-preview pointer-events-none fixed rounded-lg border border-line bg-surface p-1 shadow-xl"
           style={{ top: preview.top, left: preview.left, zIndex: 1000 }}
           aria-hidden="true"
         >

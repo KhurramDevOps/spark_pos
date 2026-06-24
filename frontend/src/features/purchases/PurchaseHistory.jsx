@@ -54,9 +54,9 @@ export default function PurchaseHistory() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-end gap-3 rounded-md border border-gray-200 bg-white p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-md border border-line bg-surface p-3">
         <label className="block">
-          <span className="mb-1 block text-xs text-gray-500">Supplier</span>
+          <span className="mb-1 block text-xs text-fg-muted">Supplier</span>
           <Select value={supplierId} onChange={onFilter(setSupplierId)}>
             <option value="">All suppliers</option>
             {suppliers.map((s) => (
@@ -68,11 +68,11 @@ export default function PurchaseHistory() {
           </Select>
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-gray-500">From</span>
+          <span className="mb-1 block text-xs text-fg-muted">From</span>
           <TextInput type="date" value={from} onChange={onFilter(setFrom)} />
         </label>
         <label className="block">
-          <span className="mb-1 block text-xs text-gray-500">To</span>
+          <span className="mb-1 block text-xs text-fg-muted">To</span>
           <TextInput type="date" value={to} onChange={onFilter(setTo)} />
         </label>
         {hasFilters && (
@@ -83,9 +83,9 @@ export default function PurchaseHistory() {
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-line bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+          <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
             <tr>
               <th className="px-4 py-2.5 font-medium">Date</th>
               <th className="px-4 py-2.5 font-medium">Supplier</th>
@@ -93,10 +93,10 @@ export default function PurchaseHistory() {
               <th className="px-4 py-2.5 text-right font-medium">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line">
             {isLoading ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-fg-subtle">
                   Loading…
                 </td>
               </tr>
@@ -108,7 +108,7 @@ export default function PurchaseHistory() {
               </tr>
             ) : purchases.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-gray-400">
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-fg-subtle">
                   {hasFilters
                     ? "No purchases match these filters."
                     : "No purchases yet. Record one with “New purchase”."}
@@ -119,10 +119,10 @@ export default function PurchaseHistory() {
                 <tr
                   key={p._id}
                   onClick={() => setOpenId(p._id)}
-                  className="cursor-pointer hover:bg-gray-50"
+                  className="cursor-pointer hover:bg-muted"
                 >
-                  <td className="px-4 py-2.5 text-gray-900">{formatDate(p.date)}</td>
-                  <td className="px-4 py-2.5 text-gray-700">{p.supplierId?.name ?? "—"}</td>
+                  <td className="px-4 py-2.5 text-fg">{formatDate(p.date)}</td>
+                  <td className="px-4 py-2.5 text-fg-muted">{p.supplierId?.name ?? "—"}</td>
                   <td className="px-4 py-2.5">
                     <span className="inline-flex items-center gap-1.5">
                       {p.paymentType === "credit" ? (
@@ -135,7 +135,7 @@ export default function PurchaseHistory() {
                   </td>
                   <td
                     className={`px-4 py-2.5 text-right font-medium tabular-nums ${
-                      p.reversed ? "text-gray-400 line-through" : "text-gray-900"
+                      p.reversed ? "text-fg-subtle line-through" : "text-fg"
                     }`}
                   >
                     {formatPaisa(decimalText(p.total))}
@@ -148,7 +148,7 @@ export default function PurchaseHistory() {
       </div>
 
       {/* Pagination */}
-      <div className="flex items-center justify-between text-sm text-gray-500">
+      <div className="flex items-center justify-between text-sm text-fg-muted">
         <span>
           {total} purchase{total === 1 ? "" : "s"}
           {isFetching && !isLoading ? " · updating…" : ""}

@@ -60,8 +60,8 @@ export default function AdjustStockModal({ item, onClose }) {
       <form id="adjust-form" onSubmit={handleSubmit} className="space-y-3">
         {serverError && <ErrorText>{serverError}</ErrorText>}
 
-        <p className="text-sm text-gray-600">
-          Current stock: <span className="font-semibold text-gray-900">{current}</span> {item.baseUnit}
+        <p className="text-sm text-fg-muted">
+          Current stock: <span className="font-semibold text-fg">{current}</span> {item.baseUnit}
         </p>
 
         <Field label="Counted quantity" error={errors.countedQty} hint="the actual quantity on the shelf">
@@ -76,7 +76,7 @@ export default function AdjustStockModal({ item, onClose }) {
                 diffPreview.startsWith("-")
                   ? "text-red-600"
                   : diffPreview === "no change"
-                    ? "text-gray-500"
+                    ? "text-fg-muted"
                     : "text-green-600"
               }`}
             >

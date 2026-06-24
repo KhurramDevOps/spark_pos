@@ -12,15 +12,15 @@ const fmtTime = (at) =>
 /** Expanded list of the transactions behind one cash-math line (drill-down). */
 function LineDetail({ date, line }) {
   const { data: rows, isLoading, isError, error } = useDailyCloseLine(date, line, true);
-  if (isLoading) return <p className="py-1 pl-4 text-xs text-gray-400">Loading…</p>;
+  if (isLoading) return <p className="py-1 pl-4 text-xs text-fg-subtle">Loading…</p>;
   if (isError) return <p className="py-1 pl-4 text-xs text-red-600">{error.message}</p>;
-  if (!rows?.length) return <p className="py-1 pl-4 text-xs text-gray-400">No transactions.</p>;
+  if (!rows?.length) return <p className="py-1 pl-4 text-xs text-fg-subtle">No transactions.</p>;
   return (
-    <div className="mb-1 ml-4 border-l border-gray-200 pl-3">
+    <div className="mb-1 ml-4 border-l border-line pl-3">
       {rows.map((r, i) => (
-        <div key={i} className="flex items-baseline justify-between py-0.5 text-xs text-gray-500">
+        <div key={i} className="flex items-baseline justify-between py-0.5 text-xs text-fg-muted">
           <span>
-            {r.label} {r.at && <span className="text-gray-300">· {fmtTime(r.at)}</span>}
+            {r.label} {r.at && <span className="text-fg-subtle">· {fmtTime(r.at)}</span>}
           </span>
           <span className="tabular-nums">{formatPaisa(r.amount)}</span>
         </div>
@@ -43,15 +43,15 @@ function MathRow({ sign, label, paisa, bold, divider, line, date }) {
         disabled={!drillable}
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-baseline justify-between py-1.5 text-left text-sm ${
-          divider ? "mt-1 border-t border-gray-200 pt-2" : ""
-        } ${bold ? "font-semibold text-gray-900" : "text-gray-500"} ${
-          drillable ? "hover:text-indigo-600" : "cursor-default"
+          divider ? "mt-1 border-t border-line pt-2" : ""
+        } ${bold ? "font-semibold text-fg" : "text-fg-muted"} ${
+          drillable ? "hover:text-accent" : "cursor-default"
         }`}
       >
         <span>
-          {sign && <span className="mr-1 inline-block w-3 text-gray-400">{sign}</span>}
+          {sign && <span className="mr-1 inline-block w-3 text-fg-subtle">{sign}</span>}
           {label}
-          {drillable && <span className="ml-1 text-xs text-gray-300">{open ? "▾" : "▸"}</span>}
+          {drillable && <span className="ml-1 text-xs text-fg-subtle">{open ? "▾" : "▸"}</span>}
         </span>
         <span className="tabular-nums">{formatPaisa(paisa)}</span>
       </button>
@@ -81,19 +81,19 @@ export default function DailyClose({ initialDate } = {}) {
   // start from the previous count rather than blank.
   const savedActual = data?.close?.actualCash;
 
-  if (isLoading) return <p className="text-sm text-gray-500">Loading…</p>;
+  if (isLoading) return <p className="text-sm text-fg-muted">Loading…</p>;
   if (isError) return <ErrorText>{error.message}</ErrorText>;
 
   const expectedPaisa = Number(data.expectedCash);
   const actualPaisa = actual.trim() !== "" ? rupeesToPaisa(actual) : savedActual != null ? Number(savedActual) : null;
   const difference = actualPaisa != null ? actualPaisa - expectedPaisa : null;
   const diffColor =
-    difference == null ? "text-gray-400" : difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : "text-gray-500";
+    difference == null ? "text-fg-subtle" : difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : "text-fg-muted";
 
   // "Was the day worth it?" — green up, red down, neutral grey at exact break-even
   // (a zero-net day shouldn't be forced into red or green).
   const netPaisa = Number(data.netForDay);
-  const netColor = netPaisa > 0 ? "text-green-600" : netPaisa < 0 ? "text-red-600" : "text-gray-500";
+  const netColor = netPaisa > 0 ? "text-green-600" : netPaisa < 0 ? "text-red-600" : "text-fg-muted";
 
   async function handleClose() {
     setErrors([]);
@@ -144,8 +144,8 @@ export default function DailyClose({ initialDate } = {}) {
 
       <div className="grid gap-5 md:grid-cols-2">
         {/* Cash math */}
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">Cash math</h2>
+        <section className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="mb-2 text-sm font-semibold text-fg">Cash math</h2>
           <MathRow label="Starting cash in drawer" paisa={data.startingCash} />
           <MathRow sign="+" label="Cash sales" paisa={data.cashSales} line="cashSales" date={date} />
           <MathRow sign="+" label="Customer payments received" paisa={data.customerPayments} line="customerPayments" date={date} />
@@ -169,9 +169,9 @@ export default function DailyClose({ initialDate } = {}) {
             </Field>
             {/* "Did the drawer balance?" — the dominant answer. Colour: red short,
                 green over, grey at exact balance (and while uncounted). */}
-            <div className="flex items-baseline justify-between border-t border-gray-200 pt-3">
+            <div className="flex items-baseline justify-between border-t border-line pt-3">
               <div>
-                <div className="text-sm font-medium text-gray-700">Difference</div>
+                <div className="text-sm font-medium text-fg-muted">Difference</div>
                 {difference != null && (
                   <div className={`text-xs ${diffColor}`}>
                     {difference < 0 ? "drawer is short" : difference > 0 ? "drawer is over" : "drawer balances"}
@@ -195,7 +195,7 @@ export default function DailyClose({ initialDate } = {}) {
               {saveMut.isPending ? "Saving…" : data.close ? "Re-save close" : "Close day"}
             </Button>
             {data.close && !data.close.stale && (
-              <p className="text-center text-xs text-gray-500">
+              <p className="text-center text-xs text-fg-muted">
                 Closed — counted {formatPaisa(data.close.actualCash)}, difference{" "}
                 {formatPaisa(data.close.differenceSnapshot)}.
               </p>
@@ -204,16 +204,16 @@ export default function DailyClose({ initialDate } = {}) {
         </section>
 
         {/* Profit / expense / net */}
-        <section className="rounded-lg border border-gray-200 bg-white p-4">
-          <h2 className="mb-2 text-sm font-semibold text-gray-900">Profit &amp; expenses</h2>
+        <section className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="mb-2 text-sm font-semibold text-fg">Profit &amp; expenses</h2>
           <MathRow label="Gross profit today" paisa={data.grossProfit} />
           <MathRow sign="−" label="Expenses today" paisa={data.expenses} />
           {/* "Was the day worth it?" — the dominant answer. */}
-          <div className="mt-1 flex items-baseline justify-between border-t border-gray-200 pt-3">
-            <span className="text-sm font-medium text-gray-700">Net for the day</span>
+          <div className="mt-1 flex items-baseline justify-between border-t border-line pt-3">
+            <span className="text-sm font-medium text-fg-muted">Net for the day</span>
             <span className={`text-3xl font-semibold tabular-nums ${netColor}`}>{formatPaisa(data.netForDay)}</span>
           </div>
-          <p className="mt-3 text-xs text-gray-500">
+          <p className="mt-3 text-xs text-fg-muted">
             Gross profit is sales minus cost (weighted-average) for non-voided sales, adjusted
             for returns. Net is display-only — never folded into per-sale profit.
           </p>

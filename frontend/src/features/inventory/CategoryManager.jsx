@@ -77,11 +77,11 @@ export default function CategoryManager({ onClose }) {
         </Button>
       </form>
 
-      <ul className="divide-y divide-gray-100">
+      <ul className="divide-y divide-line">
         {categories.map((c) => (
           <li key={c._id} className="flex items-center justify-between py-2">
             <span className="flex items-center gap-2">
-              <span className={c.isActive ? "text-gray-900" : "text-gray-400 line-through"}>
+              <span className={c.isActive ? "text-fg" : "text-fg-subtle line-through"}>
                 {c.name}
               </span>
               <Badge>{c.skuPrefix}</Badge>
@@ -93,7 +93,7 @@ export default function CategoryManager({ onClose }) {
           </li>
         ))}
         {categories.length === 0 && (
-          <li className="py-4 text-center text-sm text-gray-400">No categories yet.</li>
+          <li className="py-4 text-center text-sm text-fg-subtle">No categories yet.</li>
         )}
       </ul>
     </Modal>

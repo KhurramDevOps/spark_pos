@@ -18,7 +18,7 @@ import { formatPaisa } from "./format";
 export function formatBalance(paisa, { owedLabel = "owed", advanceLabel = "advance" } = {}) {
   const n = Number(paisa);
   if (!Number.isFinite(n) || n === 0) {
-    return { text: "Settled", tone: "gray", className: "text-gray-500" };
+    return { text: "Settled", tone: "gray", className: "text-fg-muted" };
   }
   if (n > 0) {
     return {

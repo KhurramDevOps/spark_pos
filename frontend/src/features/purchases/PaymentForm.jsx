@@ -63,7 +63,7 @@ export default function PaymentForm({ supplier, onClose }) {
           </ErrorText>
         )}
 
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-fg-muted">
           Current balance: <span className={`font-medium ${bal.className}`}>{bal.text}</span>
         </p>
 

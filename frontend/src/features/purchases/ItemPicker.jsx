@@ -22,15 +22,15 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
 
   if (selected) {
     return (
-      <div className="flex items-center justify-between rounded-md border border-gray-300 px-3 py-2 text-sm">
+      <div className="flex items-center justify-between rounded-md border border-line px-3 py-2 text-sm">
         <span className="flex min-w-0 items-center gap-2">
           <ItemImage image={selected.image} size={28} alt={selected.name} />
           <span className="truncate">
-            <span className="font-medium text-gray-900">{selected.name}</span>{" "}
-            <span className="font-mono text-xs text-gray-500">{selected.sku}</span>
+            <span className="font-medium text-fg">{selected.name}</span>{" "}
+            <span className="font-mono text-xs text-fg-muted">{selected.sku}</span>
           </span>
         </span>
-        <button type="button" className="text-xs font-medium text-indigo-600 hover:text-indigo-700" onClick={onClear}>
+        <button type="button" className="text-xs font-medium text-accent hover:text-accent" onClick={onClear}>
           change
         </button>
       </div>
@@ -51,9 +51,9 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
         onBlur={() => setTimeout(() => setOpen(false), 150)}
       />
       {open && q.trim() && (
-        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-line bg-surface shadow-lg">
           {results.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-400">No matches</div>
+            <div className="px-3 py-2 text-sm text-fg-subtle">No matches</div>
           ) : (
             results.map((it) => (
               <button
@@ -69,11 +69,11 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
                 <span className="flex min-w-0 items-center gap-2">
                   <ItemImage image={it.image} size={40} hover alt={it.name} />
                   <span className="truncate">
-                    <span className="font-medium text-gray-900">{it.name}</span>{" "}
-                    <span className="font-mono text-xs text-gray-500">{it.sku}</span>
+                    <span className="font-medium text-fg">{it.name}</span>{" "}
+                    <span className="font-mono text-xs text-fg-muted">{it.sku}</span>
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-gray-400">
+                <span className="shrink-0 text-xs text-fg-subtle">
                   {decimalText(it.stockQty)} {it.baseUnit}
                 </span>
               </button>

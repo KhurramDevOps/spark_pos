@@ -1,7 +1,41 @@
 @import "tailwindcss";
 
+/* Class-based dark mode (Tailwind v4 — no config file). Toggling `.dark` on
+   <html> flips the token values below; every token-based utility follows. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Neutral + accent design tokens (dark-mode slice 1). Light values are the
+   defaults; the `.dark` block overrides the same custom properties so utilities
+   like `bg-surface` / `text-fg` / `border-line` re-resolve at runtime.
+   Semantic colours (danger/warn/success) are added in slice 2. */
+@theme {
+  --color-canvas: #f6f7f9; /* page background */
+  --color-surface: #ffffff; /* cards, nav, modal, table */
+  --color-muted: #f9fafb; /* table headers, soft fills (was gray-50/100) */
+  --color-fg: #111827; /* primary text + numbers (was gray-900) */
+  --color-fg-muted: #6b7280; /* labels / secondary (was gray-500/600/700) */
+  --color-fg-subtle: #9ca3af; /* hints, units (was gray-400/300) */
+  --color-line: #e5e7eb; /* borders, dividers (was gray-200/300) */
+  --color-accent: #4f46e5; /* brand / links / active — TEXT+border role only */
+}
+
+.dark {
+  --color-canvas: #0d1117;
+  --color-surface: #161b22;
+  --color-muted: #1c2128;
+  --color-fg: #e6edf3;
+  --color-fg-muted: #9aa4b2;
+  --color-fg-subtle: #6b7280;
+  --color-line: #30363d;
+  --color-accent: #818cf8; /* indigo-400 — text/border only, NEVER button fills */
+}
+
+/* Native form controls / scrollbars follow the active theme. */
 :root {
   color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
 }
 
 /* Item image hover-preview fade-in (spec 006b). */
@@ -20,6 +54,6 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f6f7f9;
-  color: #111827;
+  background: var(--color-canvas);
+  color: var(--color-fg);
 }

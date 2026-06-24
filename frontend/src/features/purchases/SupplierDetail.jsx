@@ -106,27 +106,27 @@ export default function SupplierDetail({ supplierId, onClose }) {
         </>
       }
     >
-      {loadingSupplier && <p className="text-sm text-gray-500">Loading…</p>}
+      {loadingSupplier && <p className="text-sm text-fg-muted">Loading…</p>}
       {error && <p className="text-sm text-red-600">{error.message}</p>}
 
       {supplier && (
         <div className="space-y-4">
           {/* Header: balance + meta */}
-          <div className="flex items-start justify-between rounded-md bg-gray-50 p-3">
-            <div className="text-sm text-gray-600">
-              {supplier.phone ? <div>{supplier.phone}</div> : <div className="text-gray-400">No phone</div>}
+          <div className="flex items-start justify-between rounded-md bg-muted p-3">
+            <div className="text-sm text-fg-muted">
+              {supplier.phone ? <div>{supplier.phone}</div> : <div className="text-fg-subtle">No phone</div>}
               {!supplier.isActive && <Badge tone="gray">Inactive</Badge>}
             </div>
             <div className="text-right">
-              <div className="text-xs uppercase tracking-wide text-gray-400">Balance</div>
+              <div className="text-xs uppercase tracking-wide text-fg-subtle">Balance</div>
               <div className={`text-lg font-semibold ${bal.className}`}>{bal.text}</div>
             </div>
           </div>
 
           {/* Activity ledger */}
-          <div className="overflow-hidden rounded-md border border-gray-200">
+          <div className="overflow-hidden rounded-md border border-line">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+              <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
                 <tr>
                   <th className="px-3 py-2 font-medium">Date</th>
                   <th className="px-3 py-2 font-medium">Activity</th>
@@ -134,54 +134,54 @@ export default function SupplierDetail({ supplierId, onClose }) {
                   <th className="px-3 py-2 text-right font-medium">Balance</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-line">
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-3 py-6 text-center text-sm text-gray-400">
+                    <td colSpan={4} className="px-3 py-6 text-center text-sm text-fg-subtle">
                       No purchases or payments yet.
                     </td>
                   </tr>
                 ) : (
                   rows.map((r) => (
                     <tr key={`${r.kind}-${r.id}`}>
-                      <td className="px-3 py-2 text-gray-700">{formatDate(r.date)}</td>
+                      <td className="px-3 py-2 text-fg-muted">{formatDate(r.date)}</td>
                       <td className="px-3 py-2">
                         {r.kind === "payment" ? (
-                          <span className="text-gray-900">
-                            Payment{r.note ? <span className="ml-1 text-xs text-gray-400">{r.note}</span> : null}
+                          <span className="text-fg">
+                            Payment{r.note ? <span className="ml-1 text-xs text-fg-subtle">{r.note}</span> : null}
                           </span>
                         ) : r.kind === "return" ? (
-                          <span className="text-gray-900">
+                          <span className="text-fg">
                             Return <Badge tone="green">stock back</Badge>
-                            {r.note ? <span className="ml-1 text-xs text-gray-400">{r.note}</span> : null}
+                            {r.note ? <span className="ml-1 text-xs text-fg-subtle">{r.note}</span> : null}
                           </span>
                         ) : r.credit ? (
-                          <span className="text-gray-900">
+                          <span className="text-fg">
                             Purchase <Badge tone="amber">credit</Badge>
                           </span>
                         ) : (
-                          <span className="text-gray-500">
+                          <span className="text-fg-muted">
                             Purchase <Badge tone="green">paid</Badge>
                           </span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">
                         {r.delta === 0 ? (
-                          <span className="text-gray-400">—</span>
+                          <span className="text-fg-subtle">—</span>
                         ) : r.delta > 0 ? (
                           <span className="text-amber-700">+{formatPaisa(r.delta)}</span>
                         ) : (
                           <span className="text-green-700">−{formatPaisa(-r.delta)}</span>
                         )}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums font-medium text-gray-900">
+                      <td className="px-3 py-2 text-right tabular-nums font-medium text-fg">
                         {formatPaisa(r.running)}
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
-              <tfoot className="border-t border-gray-200 bg-gray-50 text-xs text-gray-500">
+              <tfoot className="border-t border-line bg-muted text-xs text-fg-muted">
                 <tr>
                   <td colSpan={4} className="px-3 py-2">
                     Opening balance: {formatPaisa(openingNum)}

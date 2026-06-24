@@ -74,8 +74,8 @@ export default function InventoryPage() {
     <div className="mx-auto max-w-6xl px-4 py-6">
       <header className="mb-5 flex items-center justify-between">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-xl font-semibold text-gray-900">Inventory</h1>
-          <span className="text-sm text-gray-400">{total} item{total === 1 ? "" : "s"}</span>
+          <h1 className="text-xl font-semibold text-fg">Inventory</h1>
+          <span className="text-sm text-fg-subtle">{total} item{total === 1 ? "" : "s"}</span>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowCategories(true)}>
@@ -126,8 +126,8 @@ export default function InventoryPage() {
           onClick={() => { setNoImage((v) => !v); setPage(1); }}
           className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
             noImage
-              ? "border-indigo-600 bg-indigo-50 text-indigo-700"
-              : "border-gray-200 text-gray-500 hover:text-gray-700"
+              ? "border-accent bg-indigo-50 text-accent"
+              : "border-line text-fg-muted hover:text-fg-muted"
           }`}
         >
           Without image
@@ -137,9 +137,9 @@ export default function InventoryPage() {
       {rowError && <div className="mb-3"><ErrorText>{rowError}</ErrorText></div>}
 
       {/* Table */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="rounded-lg border border-line bg-surface">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+          <thead className="bg-muted text-left text-xs uppercase tracking-wide text-fg-muted">
             <tr>
               <th className="px-4 py-2 font-medium"><span className="sr-only">Image</span></th>
               <th className="px-4 py-2 font-medium">Item</th>
@@ -150,15 +150,15 @@ export default function InventoryPage() {
               <th className="px-4 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-line">
             {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">Loading…</td></tr>
             )}
             {isError && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">No items found.</td></tr>
             )}
             {items.map((item) => {
               const qty = Number(decimalText(item.stockQty));
@@ -167,27 +167,27 @@ export default function InventoryPage() {
               const stockClass =
                 qty < 0 ? "font-medium text-red-600"
                 : isLowStock(item) ? "font-medium text-amber-600"
-                : "text-gray-900";
+                : "text-fg";
               return (
-              <tr key={item._id} className={item.isActive ? "" : "bg-gray-50/60"}>
+              <tr key={item._id} className={item.isActive ? "" : "bg-muted/60"}>
                 <td className="py-2.5 pl-4 pr-0 align-top">
                   <ItemImage image={item.image} size={48} hover alt={item.name} />
                 </td>
                 {/* Row anchor: name on top, SKU auxiliary below; image top-aligns to the name. */}
                 <td className="px-4 py-2.5 align-top">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{item.name}</span>
+                    <span className="font-medium text-fg">{item.name}</span>
                     {!item.isActive && <Badge tone="gray">Inactive</Badge>}
                   </div>
-                  <div className="font-mono text-xs text-gray-400">{item.sku}</div>
+                  <div className="font-mono text-xs text-fg-subtle">{item.sku}</div>
                 </td>
-                <td className="px-4 py-2.5 align-top text-gray-600">{catName(item.categoryId)}</td>
+                <td className="px-4 py-2.5 align-top text-fg-muted">{catName(item.categoryId)}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top text-right">
                   <span className={`tabular-nums ${stockClass}`}>{decimalText(item.stockQty)}</span>{" "}
-                  <span className="text-xs text-gray-400">{item.baseUnit}</span>
+                  <span className="text-xs text-fg-subtle">{item.baseUnit}</span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums text-gray-500">{formatPaisa(decimalText(item.avgCost))}</td>
-                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-gray-900">{formatPaisa(item.retailPrice)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums text-fg-muted">{formatPaisa(decimalText(item.avgCost))}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-fg">{formatPaisa(item.retailPrice)}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" onClick={() => setAdjustItem(item)}>Adjust</Button>
@@ -206,7 +206,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Pagination */}
-      <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+      <div className="mt-4 flex items-center justify-between text-sm text-fg-muted">
         <span>Page {page} of {pages}</span>
         <div className="flex gap-2">
           <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
