@@ -3,7 +3,7 @@ import multer from "multer";
 import * as items from "../controllers/itemController.js";
 import { validate } from "../middleware/validate.js";
 import { requireOwner } from "../middleware/requireOwner.js";
-import { createItemSchema, updateItemSchema, adjustStockSchema } from "../../../shared/validation/item.js";
+import { createItemSchema, updateItemSchema, adjustStockSchema, repairOpeningCostSchema } from "../../../shared/validation/item.js";
 
 const router = Router();
 
@@ -26,6 +26,8 @@ router.patch("/:id", validate(updateItemSchema), items.update);
 router.post("/:id/adjust", validate(adjustStockSchema), items.adjust);
 // Owner-only integrity repair: re-derive avgCost + stockQty from movement history.
 router.post("/:id/recalculate-cost", requireOwner, items.recalculateCost);
+// Owner-only: declare/repair the correct opening cost (spec 006c §4 path #4).
+router.post("/:id/repair-opening-cost", requireOwner, validate(repairOpeningCostSchema), items.repairOpening);
 router.post("/:id/deactivate", items.deactivate);
 router.post("/:id/reactivate", items.reactivate);
 // Image (spec 006b): upload (multipart) + remove. Owner-only; URL set is via PATCH.

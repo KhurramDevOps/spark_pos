@@ -71,3 +71,13 @@ export const adjustStockSchema = z.object({
   countedQty: nonNegativeDecimalString,
   note: z.string().trim().min(1, "a reason note is required for stock adjustment"),
 });
+
+// Owner-only "repair opening cost" (spec 006c §4 path #4). unitCost is paisa
+// (>= 0). qty is optional — the service defaults it to the item's current
+// stockQty; when supplied it must be a positive decimal (the service rejects 0).
+// note is mandatory — the owner must explain the repair.
+export const repairOpeningCostSchema = z.object({
+  unitCost: nonNegativeDecimalString,
+  qty: nonNegativeDecimalString.optional(),
+  note: z.string().trim().min(1, "a note is required to repair opening cost"),
+});

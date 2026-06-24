@@ -142,3 +142,59 @@ test("deactivate then reactivate an item over HTTP", async () => {
   page = await (await api("/items")).json();
   assert.equal(page.total, 1);
 });
+
+test("repair-opening-cost over HTTP corrects an item's avgCost (spec 006c)", async () => {
+  const cat = await (await postJson("/categories", { name: "Repair Wire" })).json();
+  // Declared with the wrong cost (Rs 100), then repaired to Rs 250.
+  const { item } = await (
+    await postJson("/items", {
+      name: "Mislabelled coil",
+      categoryId: cat._id,
+      baseUnit: "coil",
+      retailPrice: 30000,
+      openingQty: "12",
+      openingUnitCost: "10000", // Rs 100 — wrong
+    })
+  ).json();
+  assert.equal(item.avgCost.$numberDecimal, "10000");
+
+  const res = await postJson(`/items/${item._id}/repair-opening-cost`, {
+    unitCost: "25000", // Rs 250 — the real cost
+    qty: "12",
+    note: "father confirmed Rs 250 each",
+  });
+  assert.equal(res.status, 200);
+  const report = await res.json();
+  assert.equal(report.changed, true);
+  assert.equal(report.before.avgCost, "10000");
+  assert.equal(report.after.avgCost, "25000");
+  assert.equal(report.after.stockQty, "12");
+
+  // Exactly one opening movement remains.
+  assert.equal(await StockMovement.countDocuments({ itemId: item._id, type: "opening" }), 1);
+});
+
+test("repair-opening-cost rejects an empty note with 400", async () => {
+  const cat = await (await postJson("/categories", { name: "NoteGuard" })).json();
+  const { item } = await (
+    await postJson("/items", {
+      name: "Thing", categoryId: cat._id, baseUnit: "piece", retailPrice: 5000,
+    })
+  ).json();
+
+  const res = await postJson(`/items/${item._id}/repair-opening-cost`, {
+    unitCost: "25000",
+    qty: "3",
+    note: "   ",
+  });
+  assert.equal(res.status, 400);
+  assert.match((await res.json()).error, /note is required/i);
+});
+
+test("repair-opening-cost 404s for a missing item", async () => {
+  const ghost = new mongoose.Types.ObjectId();
+  const res = await postJson(`/items/${ghost}/repair-opening-cost`, {
+    unitCost: "25000", qty: "1", note: "no such item",
+  });
+  assert.equal(res.status, 404);
+});

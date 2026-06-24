@@ -6,7 +6,7 @@ import {
   listItems,
   listNegativeStockItems,
 } from "../services/itemService.js";
-import { recalculateItemCost } from "../services/costService.js";
+import { recalculateItemCost, repairOpeningCost } from "../services/costService.js";
 import { setUploadedImage, removeImage } from "../services/imageService.js";
 import Item from "../models/Item.js";
 
@@ -25,6 +25,11 @@ export const deleteImage = wrap(async (req, res) => {
 
 export const recalculateCost = wrap(async (req, res) => {
   const result = await recalculateItemCost(req.params.id, { userId: req.userId });
+  res.json(result);
+});
+
+export const repairOpening = wrap(async (req, res) => {
+  const result = await repairOpeningCost(req.params.id, req.validated, { userId: req.userId });
   res.json(result);
 });
 
