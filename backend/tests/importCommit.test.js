@@ -54,7 +54,7 @@ beforeEach(async () => {
 
 test("commit imports valid rows, auto-generates SKUs, and writes the ImportLog", async () => {
   const res = await previewThenCommit(
-    csv("GM wire,Wire,gaz,120,,,100,", "Cable,Wire,gaz,150,,,,FOO-1")
+    csv("GM wire,Wire,gaz,120,,,100,,,80", "Cable,Wire,gaz,150,,,,FOO-1")
   );
 
   assert.deepEqual(res.counts, { created: 2, skipped: 0, newCategories: 1 });
@@ -75,9 +75,9 @@ test("partial-commit rollback: a row failing after others landed writes NOTHING 
   // the *middle* row's movement insert to throw — its whole transaction must
   // roll back (no orphan item), while the rows around it stay committed.
   const text = csv(
-    "A,Wire,gaz,120,,,10,",
-    "B,Wire,gaz,120,,,5,", // this one will blow up
-    "C,Wire,gaz,120,,,3,"
+    "A,Wire,gaz,120,,,10,,,80",
+    "B,Wire,gaz,120,,,5,,,80", // this one will blow up
+    "C,Wire,gaz,120,,,3,,,80"
   );
   const { token } = await previewImport({ text, createdBy: userId });
 

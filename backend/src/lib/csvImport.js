@@ -13,7 +13,8 @@ import { httpUrl } from "../../../shared/validation/common.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
 // Locked template headers (spec 002 §7.1 / ADR-004). Order matters for the template.
-// imageUrl appended for spec 006b — optional, validated as an http(s) URL.
+// imageUrl appended for spec 006b. openingUnitCost added for spec 006c — paired with
+// openingStock (both together or both absent).
 export const HEADERS = [
   "name",
   "categoryName",
@@ -24,6 +25,7 @@ export const HEADERS = [
   "openingStock",
   "sku",
   "imageUrl",
+  "openingUnitCost",
 ];
 
 // Whole-file reject if any of these is missing.
@@ -37,8 +39,8 @@ export const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 // Downloadable template: locked headers + two example rows (rupee prices, one
 // auto-SKU row with sku left blank, one with an explicit SKU).
 export const TEMPLATE_CSV = `${HEADERS.join(",")}
-GM 7/29 wire,Wire,gaz,120,110,5,100,,
-Ceiling Fan,Fans,piece,8500,8000,2,10,FAN-1001,https://example.com/fan.jpg
+GM 7/29 wire,Wire,gaz,120,110,5,100,,,95
+Ceiling Fan,Fans,piece,8500,8000,2,10,FAN-1001,https://example.com/fan.jpg,8000
 `;
 
 /**
@@ -153,12 +155,35 @@ export function normalizeRow(raw, rowNumber) {
   }
 
   // openingStock — optional decimal >= 0, default "0". Kept as a STRING for Decimal128.
+  let openingQtyPositive = false;
   if (!isBlank(raw.openingStock)) {
     const s = String(raw.openingStock).trim();
     if (!DECIMAL_RE.test(s)) errors.push(`openingStock must be a non-negative decimal (got "${s}")`);
-    else data.openingQty = s;
+    else {
+      data.openingQty = s;
+      openingQtyPositive = /[1-9]/.test(s); // > 0
+    }
   } else {
     data.openingQty = "0";
+  }
+
+  // openingUnitCost — optional rupees -> paisa. Paired with openingStock (spec 006c):
+  // both together or both absent. openingStock alone WAS the cost=0 bug; it is now a
+  // row-level error. Zero cost is allowed (genuinely-free stock).
+  let openingCostProvided = false;
+  if (!isBlank(raw.openingUnitCost)) {
+    const c = rupeesToPaisa(raw.openingUnitCost, "openingUnitCost");
+    if (c.error) errors.push(c.error);
+    else {
+      data.openingUnitCost = String(c.value);
+      openingCostProvided = true;
+    }
+  }
+  if (openingQtyPositive && !openingCostProvided) {
+    errors.push("openingStock and openingUnitCost must be set together (openingUnitCost is missing)");
+  }
+  if (openingCostProvided && !openingQtyPositive) {
+    errors.push("openingStock and openingUnitCost must be set together (openingStock is missing or 0)");
   }
 
   // sku — optional. Blank => auto-generate at commit.

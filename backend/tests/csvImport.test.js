@@ -82,7 +82,9 @@ test("normalizeRow: blank optional cell uses default; garbage is an error", () =
 });
 
 test("normalizeRow keeps openingStock as a decimal string for Decimal128", () => {
-  const r = normalizeRow(raw({ openingStock: "2.5" }), 2);
+  // openingStock now requires a paired openingUnitCost (006c); pair one to isolate
+  // the decimal-string-preservation behavior under test.
+  const r = normalizeRow(raw({ openingStock: "2.5", openingUnitCost: "95" }), 2);
   assert.equal(r.data.openingQty, "2.5");
 });
 
@@ -104,4 +106,61 @@ test("normalizeRow validates a provided SKU charset", () => {
   const bad = normalizeRow(raw({ sku: "has space" }), 2);
   assert.equal(bad.ok, false);
   assert.match(bad.errors.join(" "), /letters, numbers, and hyphens/);
+});
+
+// --- spec 006c: openingStock + openingUnitCost pairing ---------------------
+
+test("normalizeRow: openingStock + openingUnitCost together → opening cost as paisa string", () => {
+  const r = normalizeRow(raw({ openingStock: "10", openingUnitCost: "95" }), 2);
+  assert.equal(r.ok, true);
+  assert.equal(r.data.openingQty, "10");
+  assert.equal(r.data.openingUnitCost, "9500"); // rupees → paisa, kept as a string for Decimal128
+});
+
+test("normalizeRow: openingStock alone is now a row-level error (006c breaking change)", () => {
+  const r = normalizeRow(raw({ openingStock: "10", openingUnitCost: "" }), 2);
+  assert.equal(r.ok, false);
+  assert.match(r.errors.join(" "), /must be set together.*openingUnitCost is missing/);
+});
+
+test("normalizeRow: openingUnitCost alone (no qty) is a row-level error", () => {
+  const r = normalizeRow(raw({ openingStock: "", openingUnitCost: "95" }), 2);
+  assert.equal(r.ok, false);
+  assert.match(r.errors.join(" "), /must be set together.*openingStock is missing or 0/);
+});
+
+test("normalizeRow: openingStock 0 with a cost is the missing-qty error (0 is not positive)", () => {
+  const r = normalizeRow(raw({ openingStock: "0", openingUnitCost: "95" }), 2);
+  assert.equal(r.ok, false);
+  assert.match(r.errors.join(" "), /openingStock is missing or 0/);
+});
+
+test("normalizeRow: neither opening column = unchanged behavior (qty 0, no cost)", () => {
+  const r = normalizeRow(raw({ openingStock: "", openingUnitCost: "" }), 2);
+  assert.equal(r.ok, true);
+  assert.equal(r.data.openingQty, "0");
+  assert.equal(r.data.openingUnitCost, undefined);
+});
+
+test("normalizeRow: zero opening cost is allowed when paired with positive qty (free stock)", () => {
+  const r = normalizeRow(raw({ openingStock: "5", openingUnitCost: "0" }), 2);
+  assert.equal(r.ok, true);
+  assert.equal(r.data.openingQty, "5");
+  assert.equal(r.data.openingUnitCost, "0");
+});
+
+test("normalizeRow: a garbage openingUnitCost surfaces the money validator error", () => {
+  const r = normalizeRow(raw({ openingStock: "5", openingUnitCost: "1,250" }), 2);
+  assert.equal(r.ok, false);
+  assert.match(r.errors.join(" "), /no commas or currency symbols/);
+});
+
+test("template row carries an openingUnitCost paired with its openingStock", () => {
+  assert.ok(HEADERS.includes("openingUnitCost"));
+  const headerCols = TEMPLATE_CSV.split("\n")[0].split(",");
+  const firstRow = TEMPLATE_CSV.split("\n")[1].split(",");
+  const qtyIdx = headerCols.indexOf("openingStock");
+  const costIdx = headerCols.indexOf("openingUnitCost");
+  assert.ok(Number(firstRow[qtyIdx]) > 0, "template opening qty is positive");
+  assert.ok(Number(firstRow[costIdx]) > 0, "template opening unit cost is set");
 });

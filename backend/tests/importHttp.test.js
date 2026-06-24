@@ -79,7 +79,7 @@ test("POST /imports/preview with no content returns 422", async () => {
 });
 
 test("full preview -> commit over HTTP creates the items", async () => {
-  const text = `${HEADER}\nGM wire,Wire,gaz,120,,,5,`;
+  const text = `${HEADER}\nGM wire,Wire,gaz,120,,,5,,,80`;
   const preview = await (await postCsv("/imports/preview", text)).json();
   assert.ok(preview.token);
 
