@@ -108,7 +108,10 @@ export default function ImportModal({ onClose }) {
         <div className="rounded-md bg-gray-50 p-3 text-xs text-gray-500">
           Tip: in Excel, format the <span className="font-medium">sku</span> and number columns as
           <span className="font-medium"> Text</span>, and save as plain CSV. Prices are in rupees;
-          leave <span className="font-medium">sku</span> blank to auto-generate one.
+          leave <span className="font-medium">sku</span> blank to auto-generate one. To declare stock
+          you already own, fill <span className="font-medium">openingStock</span> and
+          <span className="font-medium"> openingUnitCost</span> together (both or neither) — the unit
+          cost is what you paid each, in rupees.
         </div>
         <input
           type="file"

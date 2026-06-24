@@ -151,6 +151,36 @@ export async function createItem(input, { userId } = {}) {
 }
 
 /**
+ * Read the item's current opening declaration for display (spec 006c §9.5).
+ * Surfaces BOTH shapes so an item that most needs repair doesn't look empty:
+ *   - the cost-bearing `type: 'opening'` movement (post-006c), and
+ *   - the legacy cost-less `adjustment` noted "opening stock" (pre-006c).
+ * There is at most one by construction; returns the earliest if (improbably) both.
+ *
+ * @param {string} itemId
+ * @returns {Promise<{ opening: null | { qty, unitCost: string|null, date, legacy: boolean } }>}
+ */
+export async function getItemOpening(itemId) {
+  const mv = await StockMovement.findOne({
+    itemId,
+    $or: [{ type: "opening" }, { type: "adjustment", note: "opening stock" }],
+  })
+    .sort({ createdAt: 1, _id: 1 })
+    .lean();
+
+  if (!mv) return { opening: null };
+  return {
+    opening: {
+      qty: decimalToString(mv.qty),
+      // Legacy adjustments carry no cost — that's exactly why they need repairing.
+      unitCost: mv.costAtTime != null ? decimalToString(mv.costAtTime) : null,
+      date: mv.createdAt,
+      legacy: mv.type === "adjustment",
+    },
+  };
+}
+
+/**
  * Manually adjust an item's stock to a counted absolute quantity.
  * The counted value is authoritative: the movement delta is computed from the
  * stock read *inside* the transaction (so a concurrent edit can't corrupt it),

@@ -198,3 +198,46 @@ test("repair-opening-cost 404s for a missing item", async () => {
   });
   assert.equal(res.status, 404);
 });
+
+test("GET /items/:id/opening returns the declared opening (spec 006c §9.5)", async () => {
+  const cat = await (await postJson("/categories", { name: "OpeningRead" })).json();
+  const { item } = await (
+    await postJson("/items", {
+      name: "Declared coil", categoryId: cat._id, baseUnit: "coil",
+      retailPrice: 30000, openingQty: "8", openingUnitCost: "20000", // Rs 200
+    })
+  ).json();
+
+  const res = await api(`/items/${item._id}/opening`);
+  assert.equal(res.status, 200);
+  const { opening } = await res.json();
+  assert.equal(opening.qty, "8");
+  assert.equal(opening.unitCost, "20000");
+  assert.equal(opening.legacy, false);
+});
+
+test("GET /items/:id/opening surfaces a legacy adjustment shape as needing repair", async () => {
+  const cat = await (await postJson("/categories", { name: "LegacyRead" })).json();
+  const { item } = await (
+    await postJson("/items", { name: "Old item", categoryId: cat._id, baseUnit: "piece", retailPrice: 5000 })
+  ).json();
+  // Simulate pre-006c data: a cost-less adjustment noted "opening stock".
+  await StockMovement.create({
+    itemId: item._id, qty: "15", type: "adjustment", note: "opening stock",
+    createdBy: new mongoose.Types.ObjectId(),
+  });
+
+  const { opening } = await (await api(`/items/${item._id}/opening`)).json();
+  assert.equal(opening.qty, "15");
+  assert.equal(opening.unitCost, null);
+  assert.equal(opening.legacy, true);
+});
+
+test("GET /items/:id/opening returns null when no opening was declared", async () => {
+  const cat = await (await postJson("/categories", { name: "NoOpening" })).json();
+  const { item } = await (
+    await postJson("/items", { name: "Plain", categoryId: cat._id, baseUnit: "piece", retailPrice: 5000 })
+  ).json();
+  const { opening } = await (await api(`/items/${item._id}/opening`)).json();
+  assert.equal(opening, null);
+});

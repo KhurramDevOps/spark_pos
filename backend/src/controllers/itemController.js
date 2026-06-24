@@ -5,6 +5,7 @@ import {
   adjustStock,
   listItems,
   listNegativeStockItems,
+  getItemOpening,
 } from "../services/itemService.js";
 import { recalculateItemCost, repairOpeningCost } from "../services/costService.js";
 import { setUploadedImage, removeImage } from "../services/imageService.js";
@@ -31,6 +32,10 @@ export const recalculateCost = wrap(async (req, res) => {
 export const repairOpening = wrap(async (req, res) => {
   const result = await repairOpeningCost(req.params.id, req.validated, { userId: req.userId });
   res.json(result);
+});
+
+export const opening = wrap(async (req, res) => {
+  res.json(await getItemOpening(req.params.id));
 });
 
 export const negativeStock = wrap(async (_req, res) => {

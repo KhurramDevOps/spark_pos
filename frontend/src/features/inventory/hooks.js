@@ -52,6 +52,27 @@ export const useReactivateItem = () => useInvalidatingMutation((id) => api.react
 /** Owner-only repair: replay avgCost/stockQty from movement history. */
 export const useRecalculateCost = () => useInvalidatingMutation((id) => api.recalculateCost(id));
 
+/** Current opening declaration for an item (spec 006c §9.5). */
+export function useItemOpening(id, enabled = true) {
+  return useQuery({
+    queryKey: ["item-opening", id],
+    queryFn: () => api.fetchItemOpening(id),
+    enabled: enabled && Boolean(id),
+  });
+}
+
+/** Owner-only: declare/repair the correct opening cost (spec 006c §4 path #4). */
+export const useRepairOpeningCost = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }) => api.repairOpeningCost(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["items"] });
+      qc.invalidateQueries({ queryKey: ["item-opening", id] });
+    },
+  });
+};
+
 // ---- CSV import -----------------------------------------------------------
 
 /** Dry-run preview — no cache invalidation (nothing is written yet). */

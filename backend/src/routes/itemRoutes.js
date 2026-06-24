@@ -22,6 +22,8 @@ router.get("/", items.list);
 router.get("/negative-stock", items.negativeStock);
 router.post("/", validate(createItemSchema), items.create);
 router.get("/:id", items.getOne);
+// Current opening declaration (spec 006c §9.5) — feeds the Edit-Item repair panel.
+router.get("/:id/opening", items.opening);
 router.patch("/:id", validate(updateItemSchema), items.update);
 router.post("/:id/adjust", validate(adjustStockSchema), items.adjust);
 // Owner-only integrity repair: re-derive avgCost + stockQty from movement history.
