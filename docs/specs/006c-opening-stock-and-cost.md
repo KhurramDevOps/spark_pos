@@ -1,7 +1,10 @@
 # Spec: 006c — Opening stock & unit cost (the real-world "I already have inventory" gap)
 
-- **Status:** in-progress (review complete; review fixes incorporated; building costService
-  + StockMovement enum slice first)
+- **Status:** ✅ SHIPPED (2026-06-24). All seven build-order slices done; 233 backend tests
+  green; verified end-to-end in the browser (opening→sale profit; the legacy cost=0→purchase
+  bug reproduced through the UI and repaired to avgCost Rs 250 / stock 30, not 45). ADR-013
+  written; PROJECT_PLAN + CLAUDE.md updated. Manual per-item legacy repair is owner-driven (no
+  bulk migration).
 - **Phase:** Phase 6 polish (final, before Phase 7 AI). Same discipline tier as 003b / 004b /
   006b — fixes a real correctness gap surfaced by real shop usage.
 - **Author / date:** <you> / <fill in>

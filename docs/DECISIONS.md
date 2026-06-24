@@ -41,6 +41,12 @@ Format:
     movement (the cost-less shape the old `createItem` produced), creates the corrected opening
     ordered before all remaining movements (`createdAt = min − 1ms`), and re-runs the pure
     replay — all in one transaction.
+  - **MIGRATION is manual and owner-driven, not automatic.** Items already in the live DB
+    carrying the old cost-less `adjustment`-noted-`"opening stock"` shape are NOT bulk-converted
+    on deploy. Each is repaired individually, on demand, via the owner-only repair tool when the
+    owner notices a wrong avgCost (the Edit-Item panel surfaces the legacy shape as "needs
+    repair" so they're findable). There is deliberately no bulk migration — the shop has only a
+    handful of such items, and the real ~200-item import goes through the CSV path fresh.
   - **EXTENSION POINT (future-me):** if a real need arises for "batch openings" (different
     costs per batch of the same item), that is a NEW spec (a multi-line opening or a genuine
     Purchase pattern), not a tweak here. One opening, one qty, one cost per item stands.

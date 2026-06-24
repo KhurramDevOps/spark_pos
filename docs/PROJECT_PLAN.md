@@ -283,6 +283,24 @@ performance (32px, no hover), plus a "without image" filter chip on Inventory. V
 end-to-end (backend curl + browser, surface by surface). The first infrastructure-shaped feature
 in the project; no money/stock/cost logic touched.
 
+**Phase 6 polish — Opening stock & cost** — ✅ **SHIPPED** (spec 006c)
+Makes declaring inventory you *already own* a first-class operation, so existing stock enters
+with its real per-unit cost instead of the cost = 0 workaround that diluted avgCost (ADR-013).
+A new `StockMovement.type = 'opening'` is cost-bearing — treated identically to `purchase` in
+the avgCost replay (same `applyPurchaseToCost`, same null/negative-cost guard), but with no
+supplier, no debt, no cash/daily-close impact. Three entry paths share one paired validator
+(qty + unit cost, both-or-neither): the Add-Item modal's collapsed "Declare opening stock"
+section, a new CSV `openingUnitCost` column (its breaking pairing rule blocks the old cost-less
+import), and an **owner-only repair tool** in Edit Item that fixes items already corrupted —
+it deletes any prior opening AND the legacy cost-less `adjustment`-`"opening stock"` movement,
+writes a corrected opening ordered first (`createdAt = min − 1ms`), and re-runs the pure replay,
+all in one transaction. Verified end-to-end in the browser: (1) item declared 10 @ Rs 120, sold
+at Rs 300 → profit Rs 180, opening cost flowing through as COGS; (2) the exact owner bug
+reproduced through the UI — a cost-less "opening stock" adjustment of 15 then a real purchase of
+15 @ Rs 250 diluting avgCost to the wrong Rs 125 — then repaired to **avgCost Rs 250 with stock
+30, NOT 45** (the legacy adjustment deleted, not stacked: the headline regression), idempotent
+on a second run. The last correctness-foundation fix before AI work begins.
+
 **Phase 7 — AI layer**
 Q&A chatbot over the data (read-only first, safest), then conversational sales/stock with a
 confirm step. Anthropic Messages API + tool use.
