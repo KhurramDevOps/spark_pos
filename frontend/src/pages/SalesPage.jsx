@@ -196,10 +196,7 @@ export default function SalesPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-6">
       <header className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-900">New sale</h1>
-          <p className="text-sm text-gray-500">Ring up items — price pre-fills, bargain per line.</p>
-        </div>
+        <h1 className="text-xl font-semibold text-gray-900">New sale</h1>
         <div className="inline-flex rounded-md border border-gray-300 p-0.5 text-sm">
           {["retail", "wholesale"].map((m) => (
             <button
@@ -229,7 +226,12 @@ export default function SalesPage() {
           {lines.map((l, idx) => {
             const c = calcs[idx];
             return (
-              <div key={l.key} className="rounded-md border border-gray-200 p-2">
+              <div
+                key={l.key}
+                className={`rounded-md border p-2 ${
+                  c.belowCost ? "border-red-300 bg-red-50/40" : "border-gray-200"
+                }`}
+              >
                 <div className="mb-2">
                   <ItemPicker
                     selected={l.item}
@@ -275,7 +277,8 @@ export default function SalesPage() {
                   </button>
                 </div>
                 {c.belowCost && (
-                  <div className="mt-1 text-xs font-medium text-red-600">
+                  <div className="mt-2 flex items-center gap-1.5 rounded bg-red-100 px-2 py-1 text-sm font-semibold text-red-700">
+                    <span aria-hidden="true">▲</span>
                     Below cost — losing {rs(c.losing)}{c.qty > 1 ? " on this line" : ""}
                   </div>
                 )}
@@ -287,33 +290,24 @@ export default function SalesPage() {
           </button>
         </div>
 
-        {/* Totals */}
-        <div className="flex items-center justify-end gap-6 rounded-md bg-gray-50 px-4 py-2 text-sm">
-          <span className="text-gray-500">
-            Profit: <span className={`font-medium ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(totalProfit)}</span>
-          </span>
-          <span className="text-base">
-            <span className="text-gray-500">Total:&nbsp;</span>
-            <span className="font-semibold tabular-nums text-gray-900">{rs(grandTotal)}</span>
-          </span>
-        </div>
-
-        {/* Payment + customer */}
+        {/* Secondary fields — quieted so the cart + checkout dominate the eye path. */}
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Payment">
+          <div>
+            <span className="mb-1 block text-xs text-gray-500">Payment</span>
             <Select value={paymentType} onChange={(e) => setPaymentType(e.target.value)}>
               <option value="cash">Cash</option>
               <option value="credit">Credit (udhaar)</option>
             </Select>
-          </Field>
-          <Field label="Note (optional)">
+          </div>
+          <div>
+            <span className="mb-1 block text-xs text-gray-500">Note (optional)</span>
             <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. delivered" />
-          </Field>
+          </div>
         </div>
 
-        <div className="rounded-md bg-gray-50 p-3">
+        <div>
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="text-xs text-gray-500">
               Customer{" "}
               {paymentType === "credit" ? (
                 <span className="text-red-600">(required for credit)</span>
@@ -366,11 +360,31 @@ export default function SalesPage() {
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-2">
-          {creditNeedsCustomer && <span className="text-xs text-red-600">Pick a customer for a credit sale.</span>}
-          <Button type="submit" disabled={createMut.isPending || creditNeedsCustomer}>
-            {createMut.isPending ? "Saving…" : `Complete sale · ${rs(grandTotal)}`}
-          </Button>
+        {/* Checkout: the eye path ends here — dominant Total to read aloud, then Complete.
+            Profit is a small subordinate line (margin awareness, not the headline). */}
+        <div className="rounded-lg border border-gray-200 bg-white p-4">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <div className="text-xs text-gray-500">
+                Profit{" "}
+                <span className={`font-medium ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(totalProfit)}</span>
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-2">
+                <span className="text-sm text-gray-500">Total</span>
+                <span className="text-3xl font-semibold tabular-nums text-gray-900">{rs(grandTotal)}</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {creditNeedsCustomer && <span className="text-xs text-red-600">Pick a customer for a credit sale.</span>}
+              <Button
+                type="submit"
+                disabled={createMut.isPending || creditNeedsCustomer}
+                className="px-5 py-2.5 text-base"
+              >
+                {createMut.isPending ? "Saving…" : `Complete sale · ${rs(grandTotal)}`}
+              </Button>
+            </div>
+          </div>
         </div>
       </form>
     </div>
