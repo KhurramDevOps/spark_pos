@@ -28,7 +28,8 @@ export default function PurchaseForm({ onClose }) {
   const [serverError, setServerError] = useState("");
   const [result, setResult] = useState(null); // success panel
 
-  const { data: suppliers = [] } = useSuppliers("true");
+  const { data: suppliersData } = useSuppliers("true");
+  const suppliers = suppliersData?.suppliers ?? [];
   const createMut = useCreatePurchase();
 
   // Inline "new supplier" (kept out of the way unless needed).

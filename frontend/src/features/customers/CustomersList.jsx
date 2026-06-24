@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Badge, Button } from "../../components/ui";
-import { decimalText } from "../../lib/format";
+import { decimalText, formatPaisa } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
+import StatTiles from "../../components/StatTiles";
 import { useCustomers, useSetCustomerActive } from "./hooks";
 import CustomerForm from "./CustomerForm";
 import CustomerDetail from "./CustomerDetail";
@@ -11,13 +12,23 @@ export default function CustomersList() {
   const [showNew, setShowNew] = useState(false);
   const [openId, setOpenId] = useState(null);
 
-  const { data: customers = [], isLoading, isError, error } = useCustomers(
-    showInactive ? "all" : "true"
-  );
+  const { data, isLoading, isError, error } = useCustomers(showInactive ? "all" : "true");
+  const customers = data?.customers ?? [];
+  const totals = data?.totals;
   const setActive = useSetCustomerActive();
 
   return (
     <div className="space-y-4">
+      {totals && (
+        <StatTiles
+          tiles={[
+            { label: "Total to receive", value: formatPaisa(totals.toReceive), className: "text-green-700" },
+            { label: "Store credit outstanding", value: formatPaisa(totals.storeCredit), className: "text-amber-700" },
+            { label: "Khata customers", value: totals.count },
+          ]}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-sm text-gray-600">
           <input

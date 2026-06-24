@@ -40,11 +40,43 @@ export async function createSupplier({ name, phone, openingBalance = "0" }) {
   return Supplier.create({ name, phone, openingBalance: ob, balance: ob });
 }
 
-/** List suppliers, optionally filtered by active state; sorted by name. */
+/**
+ * Whole-book supplier totals (paisa), GLOBAL — independent of any `active` filter on
+ * the list (a deactivated supplier the shop still owes must count toward "to pay").
+ * Reads the cached `Supplier.balance` — same source as the Reports khata snapshot.
+ *  - toPay:    Σ balance where balance > 0   (money the shop owes suppliers)
+ *  - advances: Σ |balance| where balance < 0 (advances the shop has paid ahead)
+ *  - activeCount: suppliers with isActive === true ("active suppliers")
+ */
+async function supplierTotals() {
+  const [t] = await Supplier.aggregate([
+    {
+      $group: {
+        _id: null,
+        toPay: { $sum: { $cond: [{ $gt: ["$balance", 0] }, "$balance", 0] } },
+        advances: { $sum: { $cond: [{ $lt: ["$balance", 0] }, { $abs: "$balance" }, 0] } },
+        activeCount: { $sum: { $cond: [{ $eq: ["$isActive", true] }, 1, 0] } },
+      },
+    },
+  ]);
+  return {
+    toPay: decimalToString(t?.toPay ?? 0),
+    advances: decimalToString(t?.advances ?? 0),
+    activeCount: t?.activeCount ?? 0,
+  };
+}
+
+/**
+ * List suppliers, optionally filtered by active state; sorted by name. Returns the
+ * list PLUS whole-book totals in one round-trip (header tiles read `totals`).
+ */
 export async function listSuppliers({ active } = {}) {
   const query = {};
   if (typeof active === "boolean") query.isActive = active;
-  return Supplier.find(query).sort({ name: 1 }).collation({ locale: "en", strength: 2 });
+  const suppliers = await Supplier.find(query)
+    .sort({ name: 1 })
+    .collation({ locale: "en", strength: 2 });
+  return { suppliers, totals: await supplierTotals() };
 }
 
 export async function getSupplier(id) {

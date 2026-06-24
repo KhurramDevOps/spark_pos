@@ -21,7 +21,8 @@ export default function PurchaseHistory() {
   const [openId, setOpenId] = useState(null);
 
   // Suppliers (incl. inactive) so older purchases can still be filtered by name.
-  const { data: suppliers = [] } = useSuppliers("all");
+  const { data: suppliersData } = useSuppliers("all");
+  const suppliers = suppliersData?.suppliers ?? [];
 
   const filters = {
     supplierId: supplierId || undefined,

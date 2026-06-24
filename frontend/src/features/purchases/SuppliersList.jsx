@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Badge, Button } from "../../components/ui";
-import { decimalText } from "../../lib/format";
+import { decimalText, formatPaisa } from "../../lib/format";
 import { formatBalance } from "../../lib/balance";
+import StatTiles from "../../components/StatTiles";
 import { useSuppliers, useSetSupplierActive } from "./hooks";
 import SupplierForm from "./SupplierForm";
 import SupplierDetail from "./SupplierDetail";
@@ -11,13 +12,23 @@ export default function SuppliersList() {
   const [showNew, setShowNew] = useState(false);
   const [openId, setOpenId] = useState(null);
 
-  const { data: suppliers = [], isLoading, isError, error } = useSuppliers(
-    showInactive ? "all" : "true"
-  );
+  const { data, isLoading, isError, error } = useSuppliers(showInactive ? "all" : "true");
+  const suppliers = data?.suppliers ?? [];
+  const totals = data?.totals;
   const setActive = useSetSupplierActive();
 
   return (
     <div className="space-y-4">
+      {totals && (
+        <StatTiles
+          tiles={[
+            { label: "Total to pay", value: formatPaisa(totals.toPay), className: "text-amber-700" },
+            { label: "Advances paid", value: formatPaisa(totals.advances), className: "text-green-700" },
+            { label: "Active suppliers", value: totals.activeCount },
+          ]}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-sm text-gray-600">
           <input

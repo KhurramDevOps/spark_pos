@@ -28,7 +28,8 @@ export default function SaleHistory() {
   const [openId, setOpenId] = useState(null);
 
   // Customers incl. inactive so older sales stay filterable by name.
-  const { data: customers = [] } = useCustomers("all");
+  const { data: customersData } = useCustomers("all");
+  const customers = customersData?.customers ?? [];
 
   const filters = {
     customerId: customerId || undefined,

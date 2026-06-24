@@ -44,7 +44,8 @@ export default function SalesPage() {
   const [result, setResult] = useState(null);
   const [newCustomer, setNewCustomer] = useState(null); // { name, openingBalance } | null
 
-  const { data: customers = [] } = useCustomers("true");
+  const { data: customersData } = useCustomers("true");
+  const customers = customersData?.customers ?? [];
   const createMut = useCreateSale();
   const createCustomerMut = useCreateCustomer();
 

@@ -40,11 +40,44 @@ export async function createCustomer({ name, phone, openingBalance = "0" }) {
   return Customer.create({ name, phone, openingBalance: ob, balance: ob });
 }
 
-/** List customers, optionally filtered by active state; sorted by name. */
+/**
+ * Whole-book khata totals (paisa), GLOBAL — independent of any `active` filter on
+ * the list, because the receivable is a property of the whole book: a deactivated
+ * customer who still owes must count. Reads the cached `Customer.balance` — the same
+ * source the Reports khata snapshot uses (ADR-011), so the two always agree.
+ *  - toReceive:   Σ balance where balance > 0  (money customers owe the shop)
+ *  - storeCredit: Σ |balance| where balance < 0 (advances/credit the shop owes them)
+ *  - count:       customers with a non-zero balance ("khata customers")
+ */
+async function customerKhataTotals() {
+  const [t] = await Customer.aggregate([
+    {
+      $group: {
+        _id: null,
+        toReceive: { $sum: { $cond: [{ $gt: ["$balance", 0] }, "$balance", 0] } },
+        storeCredit: { $sum: { $cond: [{ $lt: ["$balance", 0] }, { $abs: "$balance" }, 0] } },
+        count: { $sum: { $cond: [{ $ne: ["$balance", 0] }, 1, 0] } },
+      },
+    },
+  ]);
+  return {
+    toReceive: decimalToString(t?.toReceive ?? 0),
+    storeCredit: decimalToString(t?.storeCredit ?? 0),
+    count: t?.count ?? 0,
+  };
+}
+
+/**
+ * List customers, optionally filtered by active state; sorted by name. Returns the
+ * list PLUS whole-book khata totals in one round-trip (header tiles read `totals`).
+ */
 export async function listCustomers({ active } = {}) {
   const query = {};
   if (typeof active === "boolean") query.isActive = active;
-  return Customer.find(query).sort({ name: 1 }).collation({ locale: "en", strength: 2 });
+  const customers = await Customer.find(query)
+    .sort({ name: 1 })
+    .collation({ locale: "en", strength: 2 });
+  return { customers, totals: await customerKhataTotals() };
 }
 
 export async function getCustomer(id) {

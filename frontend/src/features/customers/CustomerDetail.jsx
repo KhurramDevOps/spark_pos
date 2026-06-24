@@ -111,6 +111,12 @@ export default function CustomerDetail({ customerId, onClose }) {
           </div>
 
           {/* Khata ledger */}
+          <div>
+            <h3 className="mb-1.5 text-sm font-semibold text-gray-900">Khata</h3>
+            <p className="mb-2 text-xs text-gray-500">
+              Running credit account — credit sales add, payments reduce.
+            </p>
+          </div>
           <div className="overflow-hidden rounded-md border border-gray-200">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
