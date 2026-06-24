@@ -73,9 +73,9 @@ export default function InventoryPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6">
       <header className="mb-5 flex items-center justify-between">
-        <div>
+        <div className="flex items-baseline gap-2">
           <h1 className="text-xl font-semibold text-gray-900">Inventory</h1>
-          <p className="text-sm text-gray-500">{total} item(s)</p>
+          <span className="text-sm text-gray-400">{total} item{total === 1 ? "" : "s"}</span>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowCategories(true)}>
@@ -142,59 +142,65 @@ export default function InventoryPage() {
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
             <tr>
               <th className="px-4 py-2 font-medium"><span className="sr-only">Image</span></th>
-              <th className="px-4 py-2 font-medium">SKU</th>
-              <th className="px-4 py-2 font-medium">Name</th>
+              <th className="px-4 py-2 font-medium">Item</th>
               <th className="px-4 py-2 font-medium">Category</th>
               <th className="px-4 py-2 font-medium text-right">Stock</th>
               <th className="px-4 py-2 font-medium text-right">Avg cost</th>
               <th className="px-4 py-2 font-medium text-right">Retail</th>
-              <th className="px-4 py-2 font-medium">Status</th>
               <th className="px-4 py-2 font-medium text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {isLoading && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Loading…</td></tr>
             )}
             {isError && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={9} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">No items found.</td></tr>
             )}
-            {items.map((item) => (
+            {items.map((item) => {
+              const qty = Number(decimalText(item.stockQty));
+              // Color the stock number itself when it needs attention — never a
+              // separate badge. Red = negative (an error), amber = at/below reorder.
+              const stockClass =
+                qty < 0 ? "font-medium text-red-600"
+                : isLowStock(item) ? "font-medium text-amber-600"
+                : "text-gray-900";
+              return (
               <tr key={item._id} className={item.isActive ? "" : "bg-gray-50/60"}>
-                <td className="py-2 pl-4 pr-0">
+                <td className="py-2.5 pl-4 pr-0 align-top">
                   <ItemImage image={item.image} size={48} hover alt={item.name} />
                 </td>
-                <td className="px-4 py-2 font-mono text-xs text-gray-600">{item.sku}</td>
-                <td className="px-4 py-2 font-medium text-gray-900">{item.name}</td>
-                <td className="px-4 py-2 text-gray-600">{catName(item.categoryId)}</td>
-                <td className="px-4 py-2 text-right">
-                  <span className="tabular-nums">{decimalText(item.stockQty)}</span>{" "}
+                {/* Row anchor: name on top, SKU auxiliary below; image top-aligns to the name. */}
+                <td className="px-4 py-2.5 align-top">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-gray-900">{item.name}</span>
+                    {!item.isActive && <Badge tone="gray">Inactive</Badge>}
+                  </div>
+                  <div className="font-mono text-xs text-gray-400">{item.sku}</div>
+                </td>
+                <td className="px-4 py-2.5 align-top text-gray-600">{catName(item.categoryId)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right">
+                  <span className={`tabular-nums ${stockClass}`}>{decimalText(item.stockQty)}</span>{" "}
                   <span className="text-xs text-gray-400">{item.baseUnit}</span>
-                  {isLowStock(item) && <span className="ml-2"><Badge tone="amber">low</Badge></span>}
                 </td>
-                <td className="px-4 py-2 text-right tabular-nums text-gray-600">{formatPaisa(decimalText(item.avgCost))}</td>
-                <td className="px-4 py-2 text-right tabular-nums">{formatPaisa(item.retailPrice)}</td>
-                <td className="px-4 py-2">
-                  {item.isActive ? <Badge tone="green">active</Badge> : <Badge tone="red">inactive</Badge>}
-                </td>
-                <td className="px-4 py-2">
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums text-gray-500">{formatPaisa(decimalText(item.avgCost))}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-gray-900">{formatPaisa(item.retailPrice)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top">
                   <div className="flex justify-end gap-1">
                     <Button variant="ghost" onClick={() => setAdjustItem(item)}>Adjust</Button>
                     <Button variant="ghost" onClick={() => setFormItem(item)}>Edit</Button>
                     <Button variant="ghost" title="Owner-only: replay avg cost from history" onClick={() => setRecalcItem(item)}>Recalc</Button>
-                    <Button
-                      variant={item.isActive ? "danger" : "secondary"}
-                      onClick={() => toggleActive(item)}
-                    >
+                    <Button variant="ghost" onClick={() => toggleActive(item)}>
                       {item.isActive ? "Deactivate" : "Reactivate"}
                     </Button>
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
