@@ -60,10 +60,7 @@ export default function DailyClosePage({ dailyCloseDate }) {
       <header className="mb-5 flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Daily close</h1>
-          <p className="text-sm text-gray-500">
-            Did the drawer balance, and was the day worth it? Record expenses and drawer
-            cash movements, then count the drawer and close the day.
-          </p>
+          <p className="text-sm text-gray-500">Did the drawer balance, and was the day worth it?</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setModal("drawer")}>

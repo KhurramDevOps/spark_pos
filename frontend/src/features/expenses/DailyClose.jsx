@@ -44,7 +44,7 @@ function MathRow({ sign, label, paisa, bold, divider, line, date }) {
         onClick={() => setOpen((o) => !o)}
         className={`flex w-full items-baseline justify-between py-1.5 text-left text-sm ${
           divider ? "mt-1 border-t border-gray-200 pt-2" : ""
-        } ${bold ? "font-semibold text-gray-900" : "text-gray-700"} ${
+        } ${bold ? "font-semibold text-gray-900" : "text-gray-500"} ${
           drillable ? "hover:text-indigo-600" : "cursor-default"
         }`}
       >
@@ -89,6 +89,11 @@ export default function DailyClose({ initialDate } = {}) {
   const difference = actualPaisa != null ? actualPaisa - expectedPaisa : null;
   const diffColor =
     difference == null ? "text-gray-400" : difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : "text-gray-500";
+
+  // "Was the day worth it?" — green up, red down, neutral grey at exact break-even
+  // (a zero-net day shouldn't be forced into red or green).
+  const netPaisa = Number(data.netForDay);
+  const netColor = netPaisa > 0 ? "text-green-600" : netPaisa < 0 ? "text-red-600" : "text-gray-500";
 
   async function handleClose() {
     setErrors([]);
@@ -162,9 +167,18 @@ export default function DailyClose({ initialDate } = {}) {
                 placeholder={savedActual != null ? (Number(savedActual) / 100).toFixed(2) : "0.00"}
               />
             </Field>
-            <div className="flex items-baseline justify-between text-sm font-semibold">
-              <span>Difference</span>
-              <span className={`tabular-nums ${diffColor}`}>
+            {/* "Did the drawer balance?" — the dominant answer. Colour: red short,
+                green over, grey at exact balance (and while uncounted). */}
+            <div className="flex items-baseline justify-between border-t border-gray-200 pt-3">
+              <div>
+                <div className="text-sm font-medium text-gray-700">Difference</div>
+                {difference != null && (
+                  <div className={`text-xs ${diffColor}`}>
+                    {difference < 0 ? "drawer is short" : difference > 0 ? "drawer is over" : "drawer balances"}
+                  </div>
+                )}
+              </div>
+              <span className={`text-3xl font-semibold tabular-nums ${diffColor}`}>
                 {difference == null ? "—" : formatPaisa(difference)}
               </span>
             </div>
@@ -194,7 +208,11 @@ export default function DailyClose({ initialDate } = {}) {
           <h2 className="mb-2 text-sm font-semibold text-gray-900">Profit &amp; expenses</h2>
           <MathRow label="Gross profit today" paisa={data.grossProfit} />
           <MathRow sign="−" label="Expenses today" paisa={data.expenses} />
-          <MathRow label="Net for the day" paisa={data.netForDay} bold divider />
+          {/* "Was the day worth it?" — the dominant answer. */}
+          <div className="mt-1 flex items-baseline justify-between border-t border-gray-200 pt-3">
+            <span className="text-sm font-medium text-gray-700">Net for the day</span>
+            <span className={`text-3xl font-semibold tabular-nums ${netColor}`}>{formatPaisa(data.netForDay)}</span>
+          </div>
           <p className="mt-3 text-xs text-gray-500">
             Gross profit is sales minus cost (weighted-average) for non-voided sales, adjusted
             for returns. Net is display-only — never folded into per-sale profit.
