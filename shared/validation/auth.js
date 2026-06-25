@@ -36,6 +36,11 @@ export const createUserSchema = z.object({
   role: z.literal("worker"),
 });
 
+// Owner creates a worker — role is NOT in the schema; it's hard-forced to
+// "worker" server-side, so a role:"owner" in the body is silently dropped by
+// Zod (this must never become a second owner-creation path — §4).
+export const createWorkerSchema = z.object({ username, password });
+
 // Bootstrap (first owner). Role is forced to "owner" server-side, never from
 // the payload, so it isn't in the schema.
 export const bootstrapSchema = z.object({ username, password });

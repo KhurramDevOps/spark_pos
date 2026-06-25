@@ -12,6 +12,7 @@ import drawerAdjustmentRoutes from "./routes/drawerAdjustmentRoutes.js";
 import dailyCloseRoutes from "./routes/dailyCloseRoutes.js";
 import reportRoutes from "./routes/reportsRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
 import { storage } from "./lib/storage/index.js";
 import { currentUser } from "./middleware/currentUser.js";
 import { createSessionMiddleware } from "./middleware/session.js";
@@ -40,6 +41,10 @@ export function createApp() {
   // Auth endpoints (bootstrap / login / logout) — the only routes exempt from
   // requireAuth (ADR-015); they manage their own session.
   app.use("/api/auth", authRoutes);
+
+  // Owner-only user management (spec 007 slice 6). requireAuth + requireOwner
+  // applied at the router level.
+  app.use("/api/users", userRoutes);
 
   // PLACEHOLDER auth for the not-yet-guarded legacy routes — attaches a dev
   // userId until slice 7 replaces it with requireAuth per route (spec 007 §10
