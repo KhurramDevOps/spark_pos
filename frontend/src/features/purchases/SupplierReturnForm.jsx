@@ -151,7 +151,7 @@ export default function SupplierReturnForm({ supplier, onClose }) {
                 </div>
                 <button
                   type="button"
-                  className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
+                  className="pb-2 text-fg-subtle hover:text-red-600 dark:text-red-400 disabled:opacity-30"
                   onClick={() => removeLine(l.key)}
                   disabled={lines.length <= 1}
                   aria-label="Remove line"

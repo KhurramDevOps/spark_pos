@@ -107,7 +107,7 @@ export default function SupplierDetail({ supplierId, onClose }) {
       }
     >
       {loadingSupplier && <p className="text-sm text-fg-muted">Loading…</p>}
-      {error && <p className="text-sm text-red-600">{error.message}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error.message}</p>}
 
       {supplier && (
         <div className="space-y-4">
@@ -169,9 +169,9 @@ export default function SupplierDetail({ supplierId, onClose }) {
                         {r.delta === 0 ? (
                           <span className="text-fg-subtle">—</span>
                         ) : r.delta > 0 ? (
-                          <span className="text-amber-700">+{formatPaisa(r.delta)}</span>
+                          <span className="text-amber-700 dark:text-amber-400">+{formatPaisa(r.delta)}</span>
                         ) : (
-                          <span className="text-green-700">−{formatPaisa(-r.delta)}</span>
+                          <span className="text-green-700 dark:text-green-400">−{formatPaisa(-r.delta)}</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-fg">

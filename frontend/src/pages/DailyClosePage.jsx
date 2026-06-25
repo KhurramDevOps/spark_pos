@@ -38,7 +38,7 @@ function ExpensesList({ onEdit }) {
               Edit
             </button>
             <button
-              className="text-xs text-red-600 hover:underline disabled:opacity-50"
+              className="text-xs text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
               onClick={() => handleDelete(exp)}
               disabled={deleteMut.isPending}
             >

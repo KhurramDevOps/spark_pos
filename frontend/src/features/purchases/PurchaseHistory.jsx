@@ -102,7 +102,7 @@ export default function PurchaseHistory() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600">
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-400">
                   {error.message}
                 </td>
               </tr>

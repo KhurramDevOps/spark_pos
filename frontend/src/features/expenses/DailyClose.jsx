@@ -13,7 +13,7 @@ const fmtTime = (at) =>
 function LineDetail({ date, line }) {
   const { data: rows, isLoading, isError, error } = useDailyCloseLine(date, line, true);
   if (isLoading) return <p className="py-1 pl-4 text-xs text-fg-subtle">Loading…</p>;
-  if (isError) return <p className="py-1 pl-4 text-xs text-red-600">{error.message}</p>;
+  if (isError) return <p className="py-1 pl-4 text-xs text-red-600 dark:text-red-400">{error.message}</p>;
   if (!rows?.length) return <p className="py-1 pl-4 text-xs text-fg-subtle">No transactions.</p>;
   return (
     <div className="mb-1 ml-4 border-l border-line pl-3">
@@ -88,12 +88,12 @@ export default function DailyClose({ initialDate } = {}) {
   const actualPaisa = actual.trim() !== "" ? rupeesToPaisa(actual) : savedActual != null ? Number(savedActual) : null;
   const difference = actualPaisa != null ? actualPaisa - expectedPaisa : null;
   const diffColor =
-    difference == null ? "text-fg-subtle" : difference < 0 ? "text-red-600" : difference > 0 ? "text-green-600" : "text-fg-muted";
+    difference == null ? "text-fg-subtle" : difference < 0 ? "text-red-600 dark:text-red-400" : difference > 0 ? "text-green-600 dark:text-green-400" : "text-fg-muted";
 
   // "Was the day worth it?" — green up, red down, neutral grey at exact break-even
   // (a zero-net day shouldn't be forced into red or green).
   const netPaisa = Number(data.netForDay);
-  const netColor = netPaisa > 0 ? "text-green-600" : netPaisa < 0 ? "text-red-600" : "text-fg-muted";
+  const netColor = netPaisa > 0 ? "text-green-600 dark:text-green-400" : netPaisa < 0 ? "text-red-600 dark:text-red-400" : "text-fg-muted";
 
   async function handleClose() {
     setErrors([]);
@@ -129,13 +129,13 @@ export default function DailyClose({ initialDate } = {}) {
 
       {/* Hints */}
       {data.unClosedDays > 0 && (
-        <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="rounded bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           {data.unClosedDays} day(s) since the last close — starting cash may not line up
           until those days are closed too.
         </p>
       )}
       {data.close?.stale && (
-        <p className="rounded bg-orange-50 px-3 py-2 text-sm text-orange-800">
+        <p className="rounded bg-orange-50 dark:bg-orange-950/50 px-3 py-2 text-sm text-orange-800 dark:text-orange-300">
           This close is <strong>stale</strong>: a sale, return, or expense on this day
           changed after it was closed. The counted cash ({formatPaisa(data.close.actualCash)})
           still carries forward — re-save to refresh the audit snapshot.

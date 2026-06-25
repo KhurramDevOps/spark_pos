@@ -24,13 +24,13 @@ export function formatBalance(paisa, { owedLabel = "owed", advanceLabel = "advan
     return {
       text: `${formatPaisa(n)} ${owedLabel}`,
       tone: "amber",
-      className: "text-amber-700",
+      className: "text-amber-700 dark:text-amber-400",
     };
   }
   return {
     text: `${formatPaisa(-n)} ${advanceLabel}`,
     tone: "green",
-    className: "text-green-700",
+    className: "text-green-700 dark:text-green-400",
   };
 }
 

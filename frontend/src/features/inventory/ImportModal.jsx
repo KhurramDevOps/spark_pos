@@ -117,7 +117,7 @@ export default function ImportModal({ onClose }) {
           type="file"
           accept=".csv,text/csv"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent hover:file:bg-indigo-100"
+          className="block w-full text-sm text-fg-muted file:mr-3 file:rounded-md file:border-0 file:bg-indigo-50 dark:file:bg-indigo-950/40 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-accent hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/40"
         />
       </form>
     );
@@ -140,7 +140,7 @@ export default function ImportModal({ onClose }) {
           )}
         </div>
 
-        <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+        <p className="rounded-md bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
           This preview is advisory — the final result is recomputed when you import (the catalogue
           could change in between). Nothing has been saved yet.
         </p>
@@ -153,7 +153,7 @@ export default function ImportModal({ onClose }) {
         )}
 
         {attention.length === 0 ? (
-          <p className="text-sm text-green-700">
+          <p className="text-sm text-green-700 dark:text-green-400">
             All {summary.toCreate} row(s) are valid and ready to import.
           </p>
         ) : (

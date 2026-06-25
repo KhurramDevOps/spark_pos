@@ -91,7 +91,7 @@ export default function InventoryPage() {
       </header>
 
       {categories.filter((c) => c.isActive).length === 0 && (
-        <div className="mb-4 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           Create a category first (Categories button) before adding items.
         </div>
       )}
@@ -126,7 +126,7 @@ export default function InventoryPage() {
           onClick={() => { setNoImage((v) => !v); setPage(1); }}
           className={`rounded-full border px-3 py-1.5 text-sm font-medium transition ${
             noImage
-              ? "border-accent bg-indigo-50 text-accent"
+              ? "border-accent bg-indigo-50 dark:bg-indigo-950/40 text-accent"
               : "border-line text-fg-muted hover:text-fg-muted"
           }`}
         >
@@ -155,7 +155,7 @@ export default function InventoryPage() {
               <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">Loading…</td></tr>
             )}
             {isError && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600 dark:text-red-400">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
               <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">No items found.</td></tr>
@@ -165,8 +165,8 @@ export default function InventoryPage() {
               // Color the stock number itself when it needs attention — never a
               // separate badge. Red = negative (an error), amber = at/below reorder.
               const stockClass =
-                qty < 0 ? "font-medium text-red-600"
-                : isLowStock(item) ? "font-medium text-amber-600"
+                qty < 0 ? "font-medium text-red-600 dark:text-red-400"
+                : isLowStock(item) ? "font-medium text-amber-600 dark:text-amber-400"
                 : "text-fg";
               return (
               <tr key={item._id} className={item.isActive ? "" : "bg-muted/60"}>

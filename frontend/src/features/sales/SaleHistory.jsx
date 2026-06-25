@@ -112,7 +112,7 @@ export default function SaleHistory() {
             {isLoading ? (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-subtle">Loading…</td></tr>
             ) : isError ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-400">{error.message}</td></tr>
             ) : sales.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-subtle">
@@ -141,7 +141,7 @@ export default function SaleHistory() {
                     <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${s.voided ? "text-fg-subtle line-through" : "text-fg"}`}>
                       {formatPaisa(decimalText(s.total))}
                     </td>
-                    <td className={`px-4 py-2.5 text-right tabular-nums ${s.voided ? "text-fg-subtle line-through" : profit < 0 ? "text-red-600" : "text-green-700"}`}>
+                    <td className={`px-4 py-2.5 text-right tabular-nums ${s.voided ? "text-fg-subtle line-through" : profit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                       {formatPaisa(Math.round(profit))}
                     </td>
                   </tr>

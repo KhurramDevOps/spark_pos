@@ -41,7 +41,7 @@ export default function NegativeStockPage() {
             {isLoading ? (
               <tr><td colSpan={6} className="px-4 py-10 text-center text-fg-subtle">Loading…</td></tr>
             ) : isError ? (
-              <tr><td colSpan={6} className="px-4 py-10 text-center text-red-600">{error.message}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-red-600 dark:text-red-400">{error.message}</td></tr>
             ) : items.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-sm text-fg-subtle">
@@ -55,7 +55,7 @@ export default function NegativeStockPage() {
                   <td className="px-4 py-2 font-medium text-fg">{item.name}</td>
                   <td className="px-4 py-2 text-fg-muted">{catName(item.categoryId)}</td>
                   <td className="px-4 py-2 text-right">
-                    <span className="font-semibold tabular-nums text-red-600">{decimalText(item.stockQty)}</span>{" "}
+                    <span className="font-semibold tabular-nums text-red-600 dark:text-red-400">{decimalText(item.stockQty)}</span>{" "}
                     <span className="text-xs text-fg-subtle">{item.baseUnit}</span>
                   </td>
                   <td className="px-4 py-2 text-right tabular-nums text-fg-muted">

@@ -7,10 +7,10 @@ import { useRecalculateCost } from "./hooks";
 const Row = ({ label, before, after, changed }) => (
   <tr>
     <td className="px-3 py-2 text-fg-muted">{label}</td>
-    <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 line-through" : "text-fg-muted"}`}>
+    <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 dark:text-red-400 line-through" : "text-fg-muted"}`}>
       {before}
     </td>
-    <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700" : "text-fg-muted"}`}>
+    <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700 dark:text-green-400" : "text-fg-muted"}`}>
       {after}
     </td>
   </tr>

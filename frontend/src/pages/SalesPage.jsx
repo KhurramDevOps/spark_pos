@@ -135,7 +135,7 @@ export default function SalesPage() {
     );
     return (
       <div className="mx-auto max-w-3xl px-4 py-6">
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+        <div className="rounded-lg border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950/50 px-4 py-3 text-sm text-green-800 dark:text-green-300">
           Sale recorded — {sale.paymentType === "credit" ? "added to khata" : "cash"}. Stock updated.
         </div>
         <div className="mt-4 overflow-hidden rounded-lg border border-line bg-surface">
@@ -161,7 +161,7 @@ export default function SalesPage() {
                     <td className="px-3 py-2 text-right tabular-nums">{qty}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(price / 100)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(Number(decimalText(l.lineTotal)) / 100)}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${lp < 0 ? "text-red-600" : "text-green-700"}`}>
+                    <td className={`px-3 py-2 text-right tabular-nums ${lp < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                       {rs(lp)}
                     </td>
                   </tr>
@@ -172,7 +172,7 @@ export default function SalesPage() {
               <tr>
                 <td colSpan={3} className="px-3 py-2 text-right text-fg-muted">Total</td>
                 <td className="px-3 py-2 text-right tabular-nums text-fg">{rs(Number(decimalText(sale.total)) / 100)}</td>
-                <td className={`px-3 py-2 text-right tabular-nums ${profit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(profit)}</td>
+                <td className={`px-3 py-2 text-right tabular-nums ${profit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{rs(profit)}</td>
               </tr>
             </tfoot>
           </table>
@@ -229,7 +229,7 @@ export default function SalesPage() {
               <div
                 key={l.key}
                 className={`rounded-md border p-2 ${
-                  c.belowCost ? "border-red-300 bg-red-50/40" : "border-line"
+                  c.belowCost ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/40" : "border-line"
                 }`}
               >
                 <div className="mb-2">
@@ -268,7 +268,7 @@ export default function SalesPage() {
                   </div>
                   <button
                     type="button"
-                    className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
+                    className="pb-2 text-fg-subtle hover:text-red-600 dark:text-red-400 disabled:opacity-30"
                     onClick={() => removeLine(l.key)}
                     disabled={lines.length <= 1}
                     aria-label="Remove line"
@@ -277,7 +277,7 @@ export default function SalesPage() {
                   </button>
                 </div>
                 {c.belowCost && (
-                  <div className="mt-2 flex items-center gap-1.5 rounded bg-red-100 px-2 py-1 text-sm font-semibold text-red-700">
+                  <div className="mt-2 flex items-center gap-1.5 rounded bg-red-100 dark:bg-red-950/60 px-2 py-1 text-sm font-semibold text-red-700 dark:text-red-300">
                     <span aria-hidden="true">▲</span>
                     Below cost — losing {rs(c.losing)}{c.qty > 1 ? " on this line" : ""}
                   </div>
@@ -310,7 +310,7 @@ export default function SalesPage() {
             <span className="text-xs text-fg-muted">
               Customer{" "}
               {paymentType === "credit" ? (
-                <span className="text-red-600">(required for credit)</span>
+                <span className="text-red-600 dark:text-red-400">(required for credit)</span>
               ) : (
                 <span className="text-fg-subtle">(optional)</span>
               )}
@@ -367,7 +367,7 @@ export default function SalesPage() {
             <div>
               <div className="text-xs text-fg-muted">
                 Profit{" "}
-                <span className={`font-medium ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>{rs(totalProfit)}</span>
+                <span className={`font-medium ${totalProfit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>{rs(totalProfit)}</span>
               </div>
               <div className="mt-0.5 flex items-baseline gap-2">
                 <span className="text-sm text-fg-muted">Total</span>
@@ -375,7 +375,7 @@ export default function SalesPage() {
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
-              {creditNeedsCustomer && <span className="text-xs text-red-600">Pick a customer for a credit sale.</span>}
+              {creditNeedsCustomer && <span className="text-xs text-red-600 dark:text-red-400">Pick a customer for a credit sale.</span>}
               <Button
                 type="submit"
                 disabled={createMut.isPending || creditNeedsCustomer}

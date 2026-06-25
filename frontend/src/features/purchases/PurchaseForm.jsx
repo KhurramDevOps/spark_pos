@@ -210,7 +210,7 @@ export default function PurchaseForm({ onClose }) {
                   </div>
                   <button
                     type="button"
-                    className="pb-2 text-fg-subtle hover:text-red-600 disabled:opacity-30"
+                    className="pb-2 text-fg-subtle hover:text-red-600 dark:text-red-400 disabled:opacity-30"
                     onClick={() => removeLine(l.key)}
                     disabled={lines.length <= 1}
                     aria-label="Remove line"
@@ -233,7 +233,7 @@ export default function PurchaseForm({ onClose }) {
         <div className="rounded-md bg-muted p-3">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium text-fg-muted">
-              Supplier {paymentType === "credit" ? <span className="text-red-600">(required for credit)</span> : <span className="text-fg-subtle">(optional)</span>}
+              Supplier {paymentType === "credit" ? <span className="text-red-600 dark:text-red-400">(required for credit)</span> : <span className="text-fg-subtle">(optional)</span>}
             </span>
             {!newSupplier && (
               <button

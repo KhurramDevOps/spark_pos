@@ -64,7 +64,7 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
                   setOpen(false);
                   setQ("");
                 }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50"
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <ItemImage image={it.image} size={40} hover alt={it.name} />

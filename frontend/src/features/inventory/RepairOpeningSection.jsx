@@ -60,14 +60,14 @@ export default function RepairOpeningSection({ item }) {
   }
 
   return (
-    <div className="mt-4 rounded-md border border-red-200 bg-red-50/60 p-3">
+    <div className="mt-4 rounded-md border border-red-200 bg-red-50/60 dark:border-red-900 dark:bg-red-950/40 p-3">
       <div className="flex items-center justify-between">
-        <div className="text-sm font-medium text-red-800">Repair opening cost</div>
+        <div className="text-sm font-medium text-red-800 dark:text-red-300">Repair opening cost</div>
         <Badge tone="red">Owner only</Badge>
       </div>
 
       {/* Current opening (both shapes) */}
-      <div className="mt-2 text-xs text-red-900/80">
+      <div className="mt-2 text-xs text-red-900/80 dark:text-red-300/80">
         {isLoading ? (
           "Loading current opening…"
         ) : !opening ? (
@@ -75,20 +75,20 @@ export default function RepairOpeningSection({ item }) {
         ) : opening.legacy ? (
           <>
             Current opening: <span className="font-medium">{decimalText(opening.qty)} {item.baseUnit}</span>{" "}
-            <span className="font-semibold text-red-700">— no cost recorded (legacy, needs repair)</span>
+            <span className="font-semibold text-red-700 dark:text-red-300">— no cost recorded (legacy, needs repair)</span>
           </>
         ) : (
           <>
             Current opening: <span className="font-medium">
               {decimalText(opening.qty)} {item.baseUnit} @ {formatPaisa(opening.unitCost)}
             </span>{" "}
-            <span className="text-red-900/60">on {new Date(opening.date).toLocaleDateString()}</span>
+            <span className="text-red-900/60 dark:text-red-300/70">on {new Date(opening.date).toLocaleDateString()}</span>
           </>
         )}
       </div>
 
       {report && (
-        <p className="mt-2 text-xs text-green-800">
+        <p className="mt-2 text-xs text-green-800 dark:text-green-300">
           Repaired. Avg cost {formatPaisa(report.before.avgCost)} → <span className="font-medium">{formatPaisa(report.after.avgCost)}</span>
           , stock {decimalText(report.before.stockQty)} → {decimalText(report.after.stockQty)} {item.baseUnit}.
         </p>
@@ -112,7 +112,7 @@ export default function RepairOpeningSection({ item }) {
           <Field label="Reason (required)" error={errors.note}>
             <TextInput value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. entered at cost 0 before; real cost was Rs 250" />
           </Field>
-          <p className="text-xs text-red-900/70">
+          <p className="text-xs text-red-900/70 dark:text-red-300/80">
             This replaces the item's opening and replays its average cost from history. Stock and avg
             cost may change.
           </p>

@@ -7,7 +7,7 @@ function Delta({ delta }) {
     return <span className="text-xs text-fg-subtle">no prior-window data</span>;
   }
   const abs = Number(delta.abs);
-  const color = abs === 0 ? "text-fg-subtle" : abs > 0 ? "text-green-600" : "text-red-600";
+  const color = abs === 0 ? "text-fg-subtle" : abs > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
   const sign = abs > 0 ? "+" : ""; // a negative pct already carries its own "−"
   return (
     <span className={`text-xs font-medium ${color}`} title={`${formatPaisa(delta.abs)} vs prior`}>

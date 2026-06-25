@@ -74,10 +74,10 @@ export default function AdjustStockModal({ item, onClose }) {
             <span
               className={`font-semibold ${
                 diffPreview.startsWith("-")
-                  ? "text-red-600"
+                  ? "text-red-600 dark:text-red-400"
                   : diffPreview === "no change"
                     ? "text-fg-muted"
-                    : "text-green-600"
+                    : "text-green-600 dark:text-green-400"
               }`}
             >
               {diffPreview}

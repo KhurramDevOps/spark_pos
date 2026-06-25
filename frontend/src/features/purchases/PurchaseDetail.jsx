@@ -51,7 +51,7 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
   return (
     <Modal title="Purchase" onClose={onClose} footer={footer}>
       {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
-      {error && <p className="text-sm text-red-600">{error.message}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error.message}</p>}
       {p && (
         <div className="space-y-4">
           {reversed && (
@@ -64,7 +64,7 @@ export default function PurchaseDetail({ purchaseId, onClose }) {
             </div>
           )}
           {confirming && !reversed && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-md bg-red-50 dark:bg-red-950/60 px-3 py-2 text-sm text-red-700 dark:text-red-300">
               Reverse this purchase? Stock will be taken back out, any supplier payable restored, and
               the item's average cost recomputed from history. This can't be undone (re-enter the
               purchase if needed).

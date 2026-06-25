@@ -62,7 +62,7 @@ export default function SaleDetail({ saleId, onClose }) {
   return (
     <Modal title="Sale" onClose={onClose} footer={footer}>
       {isLoading && <p className="text-sm text-fg-muted">Loading…</p>}
-      {error && <p className="text-sm text-red-600">{error.message}</p>}
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error.message}</p>}
       {s && (
         <div className="space-y-4">
           {voided && (
@@ -72,12 +72,12 @@ export default function SaleDetail({ saleId, onClose }) {
             </div>
           )}
           {confirming && !voided && (
-            <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="rounded-md bg-red-50 dark:bg-red-950/60 px-3 py-2 text-sm text-red-700 dark:text-red-300">
               Void this sale? Stock goes back and any credit khata is reversed. This can't be undone (re-enter the sale if needed).
             </div>
           )}
           {hasReturns && !voided && (
-            <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-xs text-amber-800 dark:text-amber-300">
               This sale has returns against it — it can't be voided. Reverse the returns first if you really need to void it.
             </div>
           )}
@@ -133,7 +133,7 @@ export default function SaleDetail({ saleId, onClose }) {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{rsFromPaisa(price)}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-fg-muted">{rsFromPaisa(cost)}</td>
-                      <td className={`px-3 py-2 text-right tabular-nums font-medium ${profit < 0 ? "text-red-600" : "text-green-700"}`}>
+                      <td className={`px-3 py-2 text-right tabular-nums font-medium ${profit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                         {formatPaisa(Math.round((price - cost) * qty))}
                       </td>
                     </tr>
@@ -146,7 +146,7 @@ export default function SaleDetail({ saleId, onClose }) {
                   <td className="px-3 py-2 text-right font-semibold tabular-nums text-fg">
                     {formatPaisa(decimalText(s.total))}
                   </td>
-                  <td className={`px-3 py-2 text-right font-semibold tabular-nums ${totalProfit < 0 ? "text-red-600" : "text-green-700"}`}>
+                  <td className={`px-3 py-2 text-right font-semibold tabular-nums ${totalProfit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                     {formatPaisa(Math.round(totalProfit))}
                   </td>
                 </tr>

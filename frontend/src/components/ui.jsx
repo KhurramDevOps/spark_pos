@@ -4,7 +4,7 @@ export function Button({ variant = "primary", className = "", ...props }) {
   const variants = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-700",
     secondary: "bg-surface text-fg-muted border border-line hover:bg-muted",
-    danger: "bg-surface text-red-600 border border-red-300 hover:bg-red-50",
+    danger: "bg-surface text-red-600 border border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-800 dark:hover:bg-red-950/40",
     ghost: "bg-transparent text-fg-muted hover:bg-muted",
   };
   return (
@@ -21,13 +21,13 @@ export function Field({ label, error, children, hint }) {
       <span className="mb-1 block text-sm font-medium text-fg-muted">{label}</span>
       {children}
       {hint && !error && <span className="mt-1 block text-xs text-fg-subtle">{hint}</span>}
-      {error && <span className="mt-1 block text-xs text-red-600">{error}</span>}
+      {error && <span className="mt-1 block text-xs text-red-600 dark:text-red-400">{error}</span>}
     </label>
   );
 }
 
 const inputClass =
-  "w-full rounded-md border border-line px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500";
+  "w-full rounded-md border border-line px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-muted";
 
 export function TextInput(props) {
   return <input className={inputClass} {...props} />;
@@ -69,9 +69,9 @@ export function Modal({ title, onClose, children, footer }) {
 export function Badge({ tone = "gray", children }) {
   const tones = {
     gray: "bg-muted text-fg-muted",
-    red: "bg-red-100 text-red-700",
-    amber: "bg-amber-100 text-amber-800",
-    green: "bg-green-100 text-green-700",
+    red: "bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300",
+    amber: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+    green: "bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-300",
   };
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${tones[tone]}`}>
@@ -82,5 +82,5 @@ export function Badge({ tone = "gray", children }) {
 
 export function ErrorText({ children }) {
   if (!children) return null;
-  return <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{children}</div>;
+  return <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950/60 dark:text-red-300">{children}</div>;
 }

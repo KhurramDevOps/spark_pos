@@ -22,8 +22,8 @@ export default function SuppliersList() {
       {totals && (
         <StatTiles
           tiles={[
-            { label: "Total to pay", value: formatPaisa(totals.toPay), className: "text-amber-700" },
-            { label: "Advances paid", value: formatPaisa(totals.advances), className: "text-green-700" },
+            { label: "Total to pay", value: formatPaisa(totals.toPay), className: "text-amber-700 dark:text-amber-400" },
+            { label: "Advances paid", value: formatPaisa(totals.advances), className: "text-green-700 dark:text-green-400" },
             { label: "Active suppliers", value: totals.activeCount },
           ]}
         />
@@ -59,7 +59,7 @@ export default function SuppliersList() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600">{error.message}</td>
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-400">{error.message}</td>
               </tr>
             ) : suppliers.length === 0 ? (
               <tr>

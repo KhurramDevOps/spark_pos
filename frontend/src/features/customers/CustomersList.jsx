@@ -22,8 +22,8 @@ export default function CustomersList() {
       {totals && (
         <StatTiles
           tiles={[
-            { label: "Total to receive", value: formatPaisa(totals.toReceive), className: "text-green-700" },
-            { label: "Store credit outstanding", value: formatPaisa(totals.storeCredit), className: "text-amber-700" },
+            { label: "Total to receive", value: formatPaisa(totals.toReceive), className: "text-green-700 dark:text-green-400" },
+            { label: "Store credit outstanding", value: formatPaisa(totals.storeCredit), className: "text-amber-700 dark:text-amber-400" },
             { label: "Khata customers", value: totals.count },
           ]}
         />
@@ -59,7 +59,7 @@ export default function CustomersList() {
               </tr>
             ) : isError ? (
               <tr>
-                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600">{error.message}</td>
+                <td colSpan={4} className="px-4 py-10 text-center text-sm text-red-600 dark:text-red-400">{error.message}</td>
               </tr>
             ) : customers.length === 0 ? (
               <tr>

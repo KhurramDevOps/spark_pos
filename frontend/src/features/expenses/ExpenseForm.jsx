@@ -90,7 +90,7 @@ export default function ExpenseForm({ expense, onClose, onSaved }) {
           </ErrorText>
         )}
         {editingPastDay && (
-          <p className="rounded bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="rounded bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
             Editing a past-day expense will change that day's expected cash and affect
             the carried-forward float. Re-check that day's close.
           </p>

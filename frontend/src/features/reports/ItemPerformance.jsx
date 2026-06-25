@@ -29,7 +29,7 @@ export default function ItemPerformance({ items, deadStock }) {
               key={s.key}
               onClick={() => setSortKey(s.key)}
               className={`rounded px-2 py-1 text-xs font-medium ${
-                sortKey === s.key ? "bg-indigo-50 text-accent" : "text-fg-muted hover:text-fg-muted"
+                sortKey === s.key ? "bg-indigo-50 dark:bg-indigo-950/40 text-accent" : "text-fg-muted hover:text-fg-muted"
               }`}
             >
               {s.label}
@@ -65,7 +65,7 @@ export default function ItemPerformance({ items, deadStock }) {
                   <td className="py-1.5 text-fg-muted">{r.sku}</td>
                   <td className="py-1.5 text-right tabular-nums">{decimalText(r.qtySold)}</td>
                   <td className="py-1.5 text-right tabular-nums">{formatPaisa(r.revenue)}</td>
-                  <td className={`py-1.5 text-right tabular-nums ${num(r.grossProfit) < 0 ? "text-red-600" : "text-fg"}`}>
+                  <td className={`py-1.5 text-right tabular-nums ${num(r.grossProfit) < 0 ? "text-red-600 dark:text-red-400" : "text-fg"}`}>
                     {formatPaisa(r.grossProfit)}
                   </td>
                   <td className="py-1.5 text-right tabular-nums text-fg-muted">{decimalText(r.stock)}</td>
