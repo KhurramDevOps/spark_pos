@@ -3,6 +3,19 @@ import { Modal, Button, Badge, ErrorText } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { useRecalculateCost } from "./hooks";
 
+// Drift report row (hoisted to module scope so it isn't recreated each render).
+const Row = ({ label, before, after, changed }) => (
+  <tr>
+    <td className="px-3 py-2 text-fg-muted">{label}</td>
+    <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 line-through" : "text-fg-muted"}`}>
+      {before}
+    </td>
+    <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700" : "text-fg-muted"}`}>
+      {after}
+    </td>
+  </tr>
+);
+
 /**
  * Owner-only integrity repair: replay an item's avgCost + stockQty from its
  * movement history and show a drift report (cached vs recomputed). The backend
@@ -21,18 +34,6 @@ export default function RecalculateCostModal({ item, onClose }) {
       setServerError(err.message);
     }
   }
-
-  const Row = ({ label, before, after, changed }) => (
-    <tr>
-      <td className="px-3 py-2 text-fg-muted">{label}</td>
-      <td className={`px-3 py-2 text-right tabular-nums ${changed ? "text-red-600 line-through" : "text-fg-muted"}`}>
-        {before}
-      </td>
-      <td className={`px-3 py-2 text-right tabular-nums font-medium ${changed ? "text-green-700" : "text-fg-muted"}`}>
-        {after}
-      </td>
-    </tr>
-  );
 
   return (
     <Modal

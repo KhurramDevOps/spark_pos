@@ -17,7 +17,7 @@ export function setTheme(mode) {
   document.documentElement.classList.toggle("dark", mode === "dark");
   try {
     localStorage.setItem("theme", mode);
-  } catch (e) {
+  } catch {
     /* private mode / storage disabled — toggle still works for this session */
   }
   listeners.forEach((l) => l());

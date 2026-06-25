@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Field, TextInput, Select, ErrorText, Badge } from "../components/ui";
+import { Button, TextInput, Select, ErrorText } from "../components/ui";
 import { createSaleSchema } from "@shared/validation/sale.js";
 import { decimalText, rupeesToPaisa, paisaToRupeesInput } from "../lib/format";
 import ItemPicker from "../features/purchases/ItemPicker";
