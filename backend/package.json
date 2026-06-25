@@ -11,6 +11,7 @@
     "rs:init": "node src/scripts/initReplicaSet.js"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
     "express": "^5.2.1",
     "mongoose": "^9.7.1",
     "multer": "^2.2.0",
