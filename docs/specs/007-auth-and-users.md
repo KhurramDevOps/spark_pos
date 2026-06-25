@@ -148,6 +148,9 @@ mattered anywhere in this project.
   createdAt        Date     auto
   updatedAt        Date     auto
   lastLoginAt      Date     optional (set on successful login)
+  passwordChangedAt Date    optional (set on every password change; sessions issued
+                        before this instant are evicted on their next request, so a
+                        password change kicks out all OTHER sessions — slice 5)
   failedAttempts   Number   default 0 (incremented on bad password, reset on success)
   failedWindowStartedAt Date optional (anchors the rolling 15-min failure window;
                         a fresh window opens when null or aged out; reset on success)
