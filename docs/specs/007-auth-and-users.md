@@ -1,6 +1,7 @@
 # Spec: 007 — Authentication & users (Phase 8, pre-deployment)
 
-- **Status:** draft (pending review)
+- **Status:** approved — ready to build (review resolved 2026-06-25; all §9 questions closed,
+  five blockers resolved into this doc)
 - **Phase:** Phase 8 — the deferred-from-day-one auth phase. Time-sensitive: must ship
   BEFORE production deployment. There is no scenario where this app goes on a public URL
   without this phase being done correctly.
@@ -78,10 +79,10 @@ mattered anywhere in this project.
 - **Login flow**: username + password → server validates against passwordHash via the
   hashing library's compare function (constant-time, not string equality) → on success,
   issues a session.
-- **Session mechanism**: **HTTP-only, secure, SameSite=Strict cookies** with a server-side
-  session store (express-session backed by MongoStore, OR a signed JWT with short TTL —
-  decide in review; leaning sessions because they're simpler to invalidate on logout/role
-  change, and the API and frontend will share an origin in production). 12-hour TTL with
+- **Session mechanism (resolved → sessions)**: **HTTP-only, secure, SameSite=Strict cookies**
+  with a server-side session store — `express-session` backed by `connect-mongo` (NOT JWT;
+  see §9.2). Chosen because they invalidate cleanly on logout/deactivation/role change without
+  a token blacklist, and the API and frontend share an origin in production. 12-hour TTL with
   sliding expiry on activity. Cookie is HTTP-only (not readable by JS), secure (HTTPS-
   only in production), SameSite=Strict (CSRF protection at the cookie level).
 - **Middleware**: `requireAuth` (any logged-in user) and `requireOwner` (owner role only),
@@ -104,6 +105,12 @@ mattered anywhere in this project.
 - **Login attempt rate limiting**: 5 failed attempts within 15 minutes from the same
   username locks the account for 15 minutes (auto-unlock via timestamp, not a separate
   flag). The lockout message does NOT reveal whether the username exists.
+- **Production serving (single-origin)**: in production, Express serves the built frontend.
+  `vite build` emits `frontend/dist`; the backend mounts `express.static('frontend/dist')`
+  plus an SPA fallback (any non-`/api`, non-static GET returns `index.html` so client-side
+  routes resolve). This makes the API and the UI **one origin** in production, which is what
+  lets `SameSite=Strict` cookies work cleanly with no CORS. The Vite dev proxy (`/api →
+  :5001`) is **dev-only** and does not exist in production. (Resolution of review blocker 1.)
 
 **Out of scope:**
 - **Email-based password reset.** Single-shop app, no email infrastructure, owner is
@@ -127,7 +134,8 @@ mattered anywhere in this project.
   start of the shift, session covers the day, has to log in again the next day. This is
   what you want at a shop — a forgotten laptop should not stay logged in indefinitely.
 - **Account self-recovery / "forgot my password" without owner intervention.** Owner
-  resets workers' passwords. Owner resets own password... see §9 open question.
+  resets workers' passwords. Owner resets own password via a server-side CLI script
+  (§9.5, resolved).
 
 ## 5. Data model changes
 - **New collection: `users`**
@@ -147,22 +155,23 @@ mattered anywhere in this project.
 - **No changes to existing models** beyond `createdBy` becoming a real, populated User
   reference instead of a placeholder ObjectId. The field is already there everywhere;
   this spec just makes it truthful.
-- **Sessions** (if going the express-session route): stored in a `sessions` collection
-  via `connect-mongo`. Auto-created by the library; not modeled by hand. If going JWT
-  route: no collection, signing key stored in env var (see §6).
+- **Sessions** (resolved → express-session): stored in a `sessions` collection via
+  `connect-mongo`. Auto-created by the library; not modeled by hand.
 - **Migration**: one-time script run after bootstrap that finds all existing records with
   the placeholder `createdBy` ObjectId and updates them to point at the newly-created
-  bootstrap owner's `_id`. Runs once, idempotent, no-op on second run.
+  bootstrap owner's `_id`. Runs once, idempotent, no-op on second run. Touches the 10
+  collections enumerated in §6 — not an open-ended "scan everything."
+- **Frontend auth state is NOT a collection**: the client holds the current user in a React
+  `AuthContext` (exposed via a `useAuth()` hook), hydrated from a `GET /api/auth/me` call on
+  load and cleared on logout/401. No new client-state dependency (no Zustand).
 
 ## 6. Business rules
-- **Password hashing**: `bcrypt` with cost factor 12, or `argon2id` with sensible
-  defaults. Pick one in review. Whichever — never store plaintext, never store with a
-  fast hash, never store with a homegrown algorithm. Compare via the library's
+- **Password hashing (resolved → bcrypt, cost 12)**: never store plaintext, never store
+  with a fast hash, never store with a homegrown algorithm. Compare via bcrypt's
   constant-time `compare` function.
 - **Username comparison**: case-insensitive on login (`ahmed` and `Ahmed` are the same
-  user). Stored lowercase. Display can be whatever the user typed at create time (stored
-  separately as `displayName` — confirm in review; leaning no, just lowercase username,
-  display = username).
+  user). Stored lowercase. **No separate `displayName` (resolved)** — display = the
+  lowercase username.
 - **Session cookie**: HTTP-only, secure (in production via env), SameSite=Strict, name
   not the default (avoid fingerprinting), 12-hour TTL with sliding expiry on every
   authenticated request.
@@ -175,13 +184,18 @@ mattered anywhere in this project.
   | View own profile | ✅ | ✅ |
   | Ring up a sale (POS, both cash and credit) | ✅ | ✅ |
   | View customer khata (during sale flow) | ✅ | ✅ |
+  | Create a customer (inc. inline in POS) | ✅ | ✅ |
   | Record customer payment | ✅ | ✅ |
+  | Edit / deactivate / reactivate a customer | ✅ | ❌ |
   | View Inventory (read-only) | ✅ | ✅ |
+  | View categories (read) | ✅ | ✅ |
   | Edit/Add/Delete inventory items | ✅ | ❌ |
+  | Create / deactivate / reactivate a category | ✅ | ❌ |
+  | Adjust stock | ✅ | ❌ |
   | CSV import / opening stock / repair tool | ✅ | ❌ |
-  | View Sales History | ✅ | ✅ (own sales only) |
+  | View Sales History | ✅ | ✅ (own sales only — server-enforced) |
   | Void a sale | ✅ | ❌ |
-  | Record a customer return | ✅ | ❌ (confirm in review) |
+  | Record a customer return | ✅ | ✅ |
   | View Suppliers + record purchases + supplier payments | ✅ | ❌ |
   | View Daily Close | ✅ | ❌ |
   | Record expense / drawer adjustment | ✅ | ❌ |
@@ -189,7 +203,20 @@ mattered anywhere in this project.
   | View Negative Stock | ✅ | ❌ |
   | Create / deactivate / reset worker accounts | ✅ | ❌ |
   | View other users | ✅ | ❌ |
-  Confirm the rows marked "confirm" in §9.
+
+  **Exempt routes (no auth — the ONLY routes that are neither login nor bootstrap).**
+  Enumerated explicitly so this list can never grow silently (Resolution of review blocker 2):
+
+  | Route | Why exempt |
+  |---|---|
+  | `GET /api/health` | Monitoring / load-balancer probe; must answer before bootstrap and without a session. |
+  | `GET /api/static/items/:key` | Public-read product image bytes (ADR-012 / spec 006b). Public by design. |
+
+  These two are also exempt from the empty-DB 503 gate and from the 401→/login redirect.
+  Every other route requires `requireAuth`, and the owner-only rows additionally require
+  `requireOwner`. **`View Sales History` and viewing a single sale are worker-visible but
+  scoped: the server filters the list to the worker's own sales and returns 403 when a
+  worker requests another user's sale by id — not merely hidden in the UI.**
 
 - **Self-protection rules**:
   - A user cannot deactivate their own account (would lock themselves out).
@@ -201,6 +228,22 @@ mattered anywhere in this project.
     (proves it's actually them, not someone at an unattended terminal).
 - **createdBy is now session.userId**, set in middleware before route handlers run, so
   no route handler needs to think about it.
+- **Active-session revocation — `requireAuth` re-checks `isActive` (and `role`) on EVERY
+  request**, not just at login (Resolution of review blocker 3). On each authenticated
+  request it loads the session user's `{ username, role, isActive }` (a single, lightweight
+  DB lookup — those three fields only, never the full document) and rejects with 401 if the
+  account is no longer active. This is what makes "deactivate a worker" take effect on their
+  **next request**, not at the 12-hour TTL. It also picks up a role change immediately. We
+  use **server-side sessions specifically so this works without a token blacklist** — a
+  revoked user simply fails the `isActive` recheck. This per-request recheck is the headline
+  regression invariant of this spec (the equivalent of the recalculate-cost zero-drift check
+  for 003b) and gets a dedicated acceptance test in §8.
+- **Legacy `createdBy` migration touches exactly these 10 collections** (enumerated, not a
+  "scan every collection" — Resolution of review blocker 5): `Sale`, `Purchase`,
+  `StockMovement`, `CustomerPayment`, `SupplierPayment`, `CustomerReturn`, `SupplierReturn`,
+  `DrawerAdjustment`, `Expense`, `ImportLog`. For each, every document whose `createdBy`
+  equals the placeholder ObjectId (`000000000000000000000001`, today's `DEV_USER_ID`) is
+  re-pointed at the bootstrap owner's `_id`. Idempotent: a second run matches nothing.
 - **Login rate limiting**: 5 failed attempts within a 15-minute rolling window per
   username → lockout for 15 minutes (lockedUntil = now + 15 min). Successful login
   resets failedAttempts to 0. The lockout error message says generically "Too many
@@ -210,14 +253,21 @@ mattered anywhere in this project.
 - **No password printed, logged, or stored anywhere**. Not in error messages, not in
   console.log, not in audit logs, not in error stack traces. Reviewed in code.
 - **Bootstrap flow**: at app startup, if `users` collection is empty, the only available
-  route is `GET /bootstrap` (the setup screen) and `POST /bootstrap` (create the first
-  owner). All other routes return 503 "Setup required." Once an owner exists, bootstrap
-  routes become 404.
-- **Frontend**: a single auth context (Zustand store, mirroring the existing pattern)
-  holds the current user (id, username, role, isActive). All screen-level routing checks
+  routes are `GET /bootstrap` (the setup screen) and `POST /bootstrap` (create the first
+  owner) — **plus the two exempt public reads above** (`GET /api/health`,
+  `GET /api/static/items/:key`), which must answer even pre-bootstrap. All other routes
+  return 503 "Setup required." Once an owner exists, bootstrap routes become 404. This gate
+  is a **single middleware mounted ahead of the route table in `app.js`** — it does not
+  touch individual route files. To avoid a DB hit per request, it caches an in-memory
+  "an owner exists" flag, set false at startup and flipped true the moment bootstrap
+  succeeds.
+- **Frontend**: a single **`AuthContext` + `useAuth()` hook — no new dependency** (the app
+  has no Zustand store today; React context is simpler and sufficient for one auth value).
+  It holds the current user (id, username, role, isActive). All screen-level routing checks
   the user's role before rendering. The fetch wrapper (`apiClient`) attaches cookies
-  automatically (already happens for same-origin); on a 401 response it redirects to
-  `/login` and clears the auth context.
+  automatically (same-origin in both dev — via the Vite proxy — and prod — via single-origin
+  serving); on a 401 response it clears the auth context and redirects to `/login`.
+  (Resolution of review blocker 4.)
 - **Environment variables** required for production (call out in §10 for deployment
   checklist):
   - `SESSION_SECRET` — long random string, server-side cookie signing.
@@ -253,7 +303,8 @@ mattered anywhere in this project.
       during lockout still fails with "too many attempts."
 - [ ] Successful login resets failedAttempts to 0.
 - [ ] Logout clears the session server-side and the cookie client-side.
-- [ ] Every existing endpoint requires authentication except: bootstrap, login.
+- [ ] Every existing endpoint requires authentication except: bootstrap, login, and the
+      two named public reads (`GET /api/health`, `GET /api/static/items/:key`).
 - [ ] Owner-only endpoints reject worker session with 403.
 - [ ] Worker can ring up a sale; the sale's `createdBy` is the worker's userId (not
       placeholder).
@@ -273,7 +324,7 @@ mattered anywhere in this project.
 - [ ] No plaintext password is logged anywhere (manual review + a test that
       intercepts logger output during a login flow and asserts no password substring
       appears).
-- [ ] Password hashing uses bcrypt (or argon2id), cost factor 12 (or argon2 defaults).
+- [ ] Password hashing uses bcrypt, cost factor 12.
 - [ ] Username comparison is case-insensitive (`Ahmed`, `ahmed`, `AHMED` are the same
       account at login).
 - [ ] Frontend auth context populates on login, clears on logout, redirects to /login
@@ -282,38 +333,46 @@ mattered anywhere in this project.
       Daily Close / Suppliers / etc. in the nav).
 - [ ] On the deployed environment, the session cookie has Secure=true (regression: env
       var NODE_ENV=production triggers it).
+- [ ] **Active-session revocation (HEADLINE TEST):** a worker logs in and makes an
+      authenticated request successfully; the owner deactivates them; the worker's *next*
+      authenticated request (same still-valid session cookie) is rejected 401 — i.e.
+      `requireAuth` re-checks `isActive` per request, revocation does not wait for TTL.
+- [ ] A role change is reflected on the next request (worker promoted/handled via the same
+      per-request recheck — no re-login required for the server to see the new role).
+- [ ] **Exempt public routes** (`GET /api/health`, `GET /api/static/items/:key`) remain
+      reachable with no session, both before and after bootstrap; **no other** route is
+      reachable without auth (the enumerated guard test in step 8 asserts this).
+- [ ] **bcrypt 72-byte cap:** create-user and change/reset-password endpoints reject a
+      password longer than 72 characters with a validation error (never silently truncate).
+- [ ] **Lockout auto-expiry** (separate from "lockout fires"): once `lockedUntil` has
+      passed, a correct password logs in again with no manual unlock and resets
+      failedAttempts to 0.
+- [ ] **Non-default cookie name:** the session cookie is NOT `connect.sid` or `session` —
+      it uses a project-specific name (avoids stack fingerprinting).
+- [ ] **Enumerated guard test (step 8):** a single test lists every route in every router
+      file with its expected middleware (`requireAuth` / `requireOwner` / exempt) and
+      asserts the actual mounted stack matches — failing if a new route is ever added
+      without a guard.
 
-## 9. Open questions (resolve in review — keep this list SHORT, time-sensitive)
-1. **bcrypt vs argon2id**. Both are correct choices. bcrypt is in more Node tutorials
-   and battle-tested; argon2id is technically newer/better and a current best practice.
-   Leaning bcrypt (cost 12) — wider ecosystem familiarity, simpler review for
-   correctness. Confirm.
-2. **Session vs JWT**. Sessions = simpler revocation (logout, role change, lockout all
-   work cleanly server-side), but require a session store. JWT = stateless, but
-   revocation requires either a blacklist (defeats stateless) or short TTLs. Leaning
-   sessions with `express-session` + `connect-mongo`, since we already have MongoDB and
-   we want clean revocation. Confirm.
-3. **Can workers record customer returns?** Returns affect cash/khata, but they're a
-   normal customer-service operation. Owner-only feels overly restrictive in a real
-   shop. Leaning worker-yes for returns, owner-only for voids. Confirm with the actual
-   shop policy.
-4. **Worker sees Sales History — all sales, or only their own?** Leaning "only own"
-   for privacy (a worker doesn't need to see what other workers sold). Confirm.
-5. **If the owner forgets their own password — what's the recovery path?**
-   Realistic options:
-   (a) A documented command-line script run on the server: `node
-       scripts/reset-owner-password.js` that prompts for a new password. Requires server
-       access. v1-acceptable.
-   (b) A second owner account who can reset the first owner's password — but §4 says
-       owners can't create owners, so this would need rework. Probably no.
-   (c) Email-based reset — out of scope per §4.
-   Leaning (a) — single-shop, owner has access to the server, this is the realistic path.
-   Confirm.
-6. **The migration step for existing `createdBy` placeholders.** Currently every record
-   has a placeholder ObjectId. After bootstrap, are those records re-pointed at the
-   bootstrap owner? The alternative is leaving them as-is and accepting that pre-auth
-   data shows "system" in audit displays. Leaning re-point — owner's name on legacy
-   records is more useful than "system." Confirm.
+## 9. Resolved decisions (was: open questions — all closed in review 2026-06-25)
+1. **Password hashing → bcrypt, cost factor 12.** Wider ecosystem familiarity and simpler
+   correctness review than argon2id; both are acceptable, bcrypt chosen.
+2. **Session mechanism → server-side sessions** via `express-session` + `connect-mongo`
+   (not JWT). We already run MongoDB, and sessions give clean revocation: logout, lockout,
+   deactivation, and role change all take effect server-side with no token blacklist. This
+   is also what makes the per-request `isActive` recheck in §6 possible.
+3. **Workers CAN record customer returns** (normal customer-service action). Voids stay
+   owner-only. ⇒ `POST /sales/:id/returns` = `requireAuth`; `POST /sales/:id/void` =
+   `requireOwner`.
+4. **Workers see ONLY their own sales — server-enforced.** The list endpoint filters by
+   `createdBy === session user` for workers, and `GET /sales/:id` returns 403 when a worker
+   requests another user's sale. UI hiding alone is not sufficient.
+5. **Owner password recovery → a CLI script** (`backend/src/scripts/reset-owner-password.js`)
+   run on the server, matching the existing `scripts/` convention. Single-shop, owner has
+   server access. No email reset, no second-owner workaround.
+6. **Legacy `createdBy` IS migrated** to the bootstrap owner once it's created, across the
+   10 enumerated collections in §6. Owner's name on legacy records beats a "system"
+   placeholder.
 
 ## 10. Notes / decisions
 - **Deployment checklist** (this spec doesn't ship without these in place):
@@ -323,47 +382,77 @@ mattered anywhere in this project.
     committed). Generate with `openssl rand -base64 48`.
   - `NODE_ENV=production` set.
   - `MONGODB_URI` points at the production Atlas database.
+  - `vite build` run and `frontend/dist` present, served by Express (`express.static` +
+    SPA fallback) so production is single-origin (blocker 1). No separate static host /
+    CDN in v1 — a second origin would break `SameSite=Strict`.
   - First-run bootstrap completed (owner account created) before any external user
     can hit the URL.
-  - The migration script for legacy `createdBy` runs as part of bootstrap.
-- **ADR-014 to write alongside this spec**: "Auth uses session cookies (HTTP-only,
-  Secure, SameSite=Strict) backed by a server-side store; passwords are hashed with
-  bcrypt cost 12 (or argon2id, depending on §9.1 resolution); no plaintext passwords
-  anywhere; role enum stays at owner | worker with a fixed capability matrix; bootstrap
-  is the only path to creating the first owner." Same voice as 009/010/011/012/013.
-- **ADR-015 might also land here**: "All deployed endpoints require authentication
-  except bootstrap and login; deployment without auth in front of every other endpoint
-  is forbidden." This is the architectural invariant that this spec creates and that
-  must be preserved by every future spec.
+  - The migration script for legacy `createdBy` runs as part of bootstrap (10 enumerated
+    collections, see §6).
+- **ADR-014 (written with this spec)**: "Auth uses session cookies (HTTP-only, Secure,
+  SameSite=Strict) backed by a server-side `connect-mongo` store; passwords hashed with
+  bcrypt cost 12; no plaintext passwords anywhere; `requireAuth` re-checks `isActive`/`role`
+  per request so revocation needs no blacklist; role enum stays `owner | worker` with the
+  fixed §6 capability matrix; bootstrap is the only path to the first owner." Same voice as
+  009/010/011/012/013.
+- **ADR-015 (written with this spec)**: "Every deployed endpoint requires authentication
+  **except bootstrap, login, and the two named public reads — `GET /api/health` and
+  `GET /api/static/items/:key`**. Deploying without auth in front of every other endpoint is
+  forbidden." The exemption list is closed and enumerated; adding to it requires a new ADR.
+  This is the architectural invariant this spec creates and every future spec must preserve.
 - **Build order** (every step has owner verification before the next):
-  1. User model + Zod + tests (hash on create, never echo password back, username
-     case-insensitive uniqueness).
-  2. bcrypt + auth service: createUser, verifyPassword, lockout logic. Tests.
-  3. Session middleware (express-session + connect-mongo OR JWT). Tests including TTL,
-     sliding expiry, logout.
-  4. requireAuth + requireOwner middleware. Tests.
-  5. Bootstrap endpoint (only-when-empty, 503-everywhere-else gate). Tests.
-  6. Login / logout endpoints. Tests including the rate-limit + lockout flow.
-  7. User management endpoints (create worker, deactivate, reset password, change own).
-     Tests including the self-protection rules.
-  8. **Apply requireAuth + requireOwner to EVERY existing route** per the §6 matrix.
-     Tests that workers get 403 on owner-only endpoints, that no endpoint is
-     accidentally unprotected.
-  9. The migration script + bootstrap-time invocation. Tests including idempotency.
-  10. PAUSE on green. Verify backend slice with curl: bootstrap → login → call
-      protected endpoint → logout → call protected endpoint fails.
-  11. Frontend: auth context (Zustand), login page, bootstrap setup page, profile page,
-      user management page (owner-only), logout button in nav, role-based nav hiding,
-      apiClient 401 → redirect to /login, route guards.
+  1. **(SLICE 1)** User model + Zod + bcrypt + auth service (createUser, verifyPassword,
+     lockout logic). Tests: hash-on-create (passwordHash never the plaintext, never echoed
+     back), username case-insensitive uniqueness, **72-byte password cap**, lockout fires at
+     5 fails / 15 min, **lockout auto-expiry** (correct password works once `lockedUntil`
+     passes, resets failedAttempts), `isActive` gate, and the **no-plaintext-in-logs**
+     intercept (capture logger output through a login/hash flow, assert no password
+     substring). PAUSE on green.
+  2. Session middleware (express-session + connect-mongo). Tests: 12h TTL, sliding expiry,
+     logout destroys the session server-side, non-default cookie name, Secure flag under
+     NODE_ENV=production.
+  3. `requireAuth` (incl. the **per-request `isActive`/`role` recheck**) + `requireOwner`
+     middleware. Tests including the active-session-revocation path.
+  4. Bootstrap endpoint + the single empty-DB 503 gate middleware (exempting health +
+     static). Tests: 503-everywhere-when-empty, bootstrap→404-once-owner-exists, exempt
+     routes still reachable.
+  5. Login / logout endpoints. Tests: rate-limit + lockout flow, identical message/timing
+     for unknown-username vs wrong-password.
+  6. User management endpoints (create worker, deactivate, reset password, change own).
+     Tests including the self-protection rules (no self-deactivate, last-active-owner guard,
+     change-own requires current password).
+  7. **Apply auth middleware to EVERY existing route** per the §6 matrix. Note the file
+     structure: `imports / purchases / suppliers / expenses / drawer-adjustments /
+     daily-close / reports` are uniformly owner → `router.use(requireOwner)` is fine; but
+     **`items`, `sales`, and `customers` are mixed-access and MUST use per-route
+     middleware** (e.g. `items` list = requireAuth but `negative-stock`/`adjust`/mutations =
+     requireOwner; `sales` create/list = requireAuth but `void` = requireOwner; `customers`
+     create/payments = requireAuth but edit/deactivate = requireOwner). Produce the
+     **enumerated guard test** (the spec's load-bearing verification): it lists every route
+     in every router file with its expected guard and asserts the actual mounted middleware
+     stack matches — so a future route added without a guard fails the suite.
+  8. The migration script + bootstrap-time invocation, over the **10 enumerated collections
+     in §6**. Tests including idempotency (second run is a no-op) and a regression: a sale
+     created before this spec has a valid `createdBy` → real User after migration.
+  9. **Production serving**: `express.static('frontend/dist')` + SPA fallback (non-`/api`,
+     non-static GET → `index.html`), mounted so it doesn't shadow `/api` or the 503 gate.
+     Vite proxy stays dev-only.
+  10. PAUSE on green. Verify backend slice with curl: bootstrap → login → call protected
+      endpoint → logout → call protected endpoint fails.
+  11. Frontend: **`AuthContext` + `useAuth()` (React context, no new dep)**, login page,
+      bootstrap setup page, profile page, user management page (owner-only), logout button
+      in nav, role-based nav hiding, apiClient 401 → clear context + redirect to /login,
+      route guards.
   12. Browser verification: full flow end-to-end. Bootstrap → login as owner → create
       worker → log out → log in as worker → try to access /reports (should 403 + UI
       hides it) → log out → log in as owner → deactivate worker → try to log in as
-      worker (should fail).
+      worker (should fail) AND, with a still-open worker session, confirm the next request
+      is 401 (active-session revocation).
   13. The "manual review for plaintext passwords in logs" pass, plus the test that
       asserts no password substring appears in intercepted logger output.
-- After ship: ADR-014 (+ ADR-015 if going that route) written. PROJECT_PLAN.md + CLAUDE.md
-  updated to mark Phase 8 SHIPPED. The "real auth" TODO in CLAUDE.md gets removed (it
-  was the longest-standing TODO in the project).
+- ADR-014 and ADR-015 are written WITH this spec (same commit), not after ship. After ship:
+  PROJECT_PLAN.md + CLAUDE.md updated to mark Phase 8 SHIPPED. The "real auth" TODO in
+  CLAUDE.md gets removed (it was the longest-standing TODO in the project).
 - The actual deployment is a SEPARATE step after this spec ships. Don't combine them.
   Ship auth, verify in browser locally with real users + real role gates, THEN deploy.
   Deploying before this is verified is the worst time to discover a problem.

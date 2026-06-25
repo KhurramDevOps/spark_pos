@@ -15,6 +15,65 @@ Format:
 
 ---
 
+## ADR-015 — Every deployed endpoint requires auth except a closed, enumerated public list
+- Date: 2026-06-25
+- Status: accepted
+- Context: Phase 8 (spec 007) puts the app on a public URL. Before it, "the person at the
+  keyboard is the owner" was a safe assumption; on the internet it is not. The failure mode
+  that matters most is not a wrong permission on one route — it is a route that ships with NO
+  auth at all (a new endpoint added later, a router file someone forgot to guard). That is a
+  silent data breach, not a visible bug. This ADR fixes the invariant so it can't erode.
+- Decision:
+  - **Default-deny: every endpoint requires `requireAuth`, and owner-gated ones additionally
+    `requireOwner`.** The exceptions are a CLOSED, ENUMERATED list — bootstrap (`GET`/`POST
+    /bootstrap`), login (`POST /api/auth/login`), and exactly two public reads:
+    **`GET /api/health`** (monitoring / pre-bootstrap probe) and **`GET /api/static/items/:key`**
+    (public product-image bytes, ADR-012). Nothing else is exempt.
+  - **The exempt list is also exempt from the empty-DB 503 gate and the 401→/login redirect**,
+    so health checks and images work before bootstrap and without a session.
+  - **Adding to the exempt list requires a new ADR.** It is not a code-review judgement call.
+  - **The guard map is asserted by a test, not by reading code.** An enumerated guard test
+    lists every route in every router file with its expected middleware and asserts the actual
+    mounted stack matches — a new unguarded route fails CI. (Spec 007 §10 step 7.)
+  - **Mixed-access router files use per-route middleware, not file-level `router.use`.**
+    `items`, `sales`, `customers` mix auth-only and owner-only routes; only the uniformly-owner
+    files (`imports`, `purchases`, `suppliers`, `expenses`, `drawer-adjustments`, `daily-close`,
+    `reports`) may guard at the file level.
+- Consequences: no endpoint can be deployed unauthenticated by accident; the one-line cost is
+  that genuinely-public routes must be named here and in the test. Future specs inherit the
+  invariant — any new route is auth-required until explicitly and deliberately exempted.
+
+## ADR-014 — Auth: session cookies + bcrypt, with per-request revocation and a fixed role matrix
+- Date: 2026-06-25
+- Status: accepted
+- Context: Spec 007 needs real authentication before deployment: a User model, password
+  hashing, sessions, and two roles replacing the placeholder `currentUser` middleware that
+  hard-codes every request as an owner. Crypto correctness and clean revocation matter more
+  than feature breadth here — a hashing or session bug compromises every account.
+- Decision:
+  - **Passwords hashed with `bcrypt`, cost factor 12.** Never plaintext, never a fast hash,
+    never homegrown. Compared via bcrypt's constant-time `compare`. Password max 72 bytes
+    (bcrypt's limit) is enforced as validation, never silently truncated.
+  - **Server-side sessions via `express-session` + `connect-mongo`** (not JWT). Cookie is
+    HTTP-only, Secure (under `NODE_ENV=production`), SameSite=Strict, a non-default name, with
+    a 12-hour TTL and sliding expiry. Logout destroys the session server-side.
+  - **`requireAuth` re-checks `{ isActive, role }` on every request** (one lightweight lookup,
+    those fields only). Deactivation, lockout, and role change therefore take effect on the
+    user's NEXT request — no token blacklist, which is the main reason sessions were chosen
+    over JWT. This per-request recheck is the spec's headline regression invariant.
+  - **Roles stay `owner | worker` with the fixed §6 capability matrix.** Owners cannot create
+    other owners; bootstrap is the only path to the first owner (created only while the `users`
+    collection is empty). Login lockout is per-username (5 fails / 15 min → 15-min lockout,
+    auto-expiring by timestamp), with identical message/timing for unknown-username vs
+    wrong-password to avoid enumeration.
+  - **Production is single-origin**: Express serves the built frontend (`express.static` +
+    SPA fallback), so SameSite=Strict cookies work with no CORS. The Vite proxy is dev-only.
+- Consequences: revocation is clean and immediate without extra infrastructure; the cost is a
+  session store (a `sessions` collection) and one small DB read per authenticated request —
+  acceptable at this shop's traffic. No plaintext password is logged, stored, or echoed
+  anywhere (reviewed in code + asserted by a log-intercept test). A future third role, 2FA, or
+  email reset is a new spec, not a tweak here.
+
 ## ADR-013 — Opening stock is a first-class inventory declaration, not a kind of purchase
 - Date: 2026-06-24
 - Status: accepted
