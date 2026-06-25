@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 
 import { createApp } from "../src/app.js";
+import { setHasUsers } from "../src/lib/setupState.js";
 import { requireOwner } from "../src/middleware/requireOwner.js";
 import Sale from "../src/models/Sale.js";
 import Expense from "../src/models/Expense.js";
@@ -20,6 +21,7 @@ const api = (path, options) => fetch(`${base}${path}`, options);
 
 before(async () => {
   await mongoose.connect(TEST_URI);
+  setHasUsers(true); // spec 007: app now requires a bootstrapped owner; these route tests assume one exists
   await Promise.all([Sale.init(), Expense.init(), Customer.init(), Item.init()]);
   await new Promise((r) => (server = createApp().listen(0, "127.0.0.1", r)));
   base = `http://127.0.0.1:${server.address().port}/api`;

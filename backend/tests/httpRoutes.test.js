@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import mongoose from "mongoose";
 
 import { createApp } from "../src/app.js";
+import { setHasUsers } from "../src/lib/setupState.js";
 import Item from "../src/models/Item.js";
 import Category from "../src/models/Category.js";
 import StockMovement from "../src/models/StockMovement.js";
@@ -25,6 +26,7 @@ const postJson = (path, body) =>
 
 before(async () => {
   await mongoose.connect(TEST_URI);
+  setHasUsers(true); // spec 007: app now requires a bootstrapped owner; these route tests assume one exists
   await Promise.all([Item.init(), Category.init(), StockMovement.init(), Counter.init()]);
   // Bind to IPv4 loopback on an ephemeral port.
   await new Promise((resolve) => {

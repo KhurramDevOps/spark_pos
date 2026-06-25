@@ -7,6 +7,7 @@ import path from "node:path";
 import sharp from "sharp";
 
 import { createApp } from "../src/app.js";
+import { setHasUsers } from "../src/lib/setupState.js";
 import Item from "../src/models/Item.js";
 import Category from "../src/models/Category.js";
 
@@ -34,6 +35,7 @@ before(async () => {
   uploadsDir = await mkdtemp(path.join(os.tmpdir(), "sparkpos-img-"));
   process.env.UPLOADS_DIR = uploadsDir; // LocalDiskDriver resolves this lazily
   await mongoose.connect(TEST_URI);
+  setHasUsers(true); // spec 007: app now requires a bootstrapped owner; these route tests assume one exists
   await Promise.all([Item.init(), Category.init()]);
   await new Promise((r) => (server = createApp().listen(0, "127.0.0.1", r)));
   base = `http://127.0.0.1:${server.address().port}`;

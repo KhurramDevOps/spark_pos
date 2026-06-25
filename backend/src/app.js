@@ -11,8 +11,11 @@ import expenseRoutes from "./routes/expenseRoutes.js";
 import drawerAdjustmentRoutes from "./routes/drawerAdjustmentRoutes.js";
 import dailyCloseRoutes from "./routes/dailyCloseRoutes.js";
 import reportRoutes from "./routes/reportsRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 import { storage } from "./lib/storage/index.js";
 import { currentUser } from "./middleware/currentUser.js";
+import { createSessionMiddleware } from "./middleware/session.js";
+import { setupGate } from "./middleware/setupGate.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 
 /**
@@ -25,7 +28,22 @@ export function createApp() {
 
   app.use(express.json());
 
-  // PLACEHOLDER auth: attaches a dev userId until real login exists.
+  // Server-side sessions (spec 007 / ADR-014). Must precede the gate and any
+  // route that reads req.session. Requires Mongoose to be connected already.
+  app.use(createSessionMiddleware());
+
+  // Empty-DB setup gate: 503 everywhere until the first owner is bootstrapped
+  // (except the two public reads + the bootstrap route itself); once an owner
+  // exists, the bootstrap route 404s. One middleware, ahead of the route table.
+  app.use(setupGate);
+
+  // Auth endpoints (bootstrap / login / logout) — the only routes exempt from
+  // requireAuth (ADR-015); they manage their own session.
+  app.use("/api/auth", authRoutes);
+
+  // PLACEHOLDER auth for the not-yet-guarded legacy routes — attaches a dev
+  // userId until slice 7 replaces it with requireAuth per route (spec 007 §10
+  // step 7). The setup gate above already blocks these until bootstrap.
   app.use(currentUser);
 
   app.use("/api", healthRoutes);
