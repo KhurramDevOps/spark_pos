@@ -36,6 +36,11 @@ export async function hashPassword(plain) {
   return bcrypt.hash(plain, BCRYPT_COST);
 }
 
+/** Constant-time compare of a plaintext against a stored hash. */
+export function comparePassword(plain, hash) {
+  return bcrypt.compare(String(plain ?? ""), hash);
+}
+
 /**
  * Create a user with a hashed password. `role` defaults to "worker"; bootstrap
  * passes "owner" explicitly. Returns the saved user document.

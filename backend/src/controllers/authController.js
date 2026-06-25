@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
-import { hashPassword, verifyPassword } from "../services/authService.js";
+import { hashPassword, verifyPassword, comparePassword } from "../services/authService.js";
 import { migrateLegacyCreatedBy } from "../services/migrateCreatedBy.js";
 import { setHasUsers } from "../lib/setupState.js";
 import { SESSION_COOKIE_NAME } from "../middleware/session.js";
@@ -55,6 +55,7 @@ export async function bootstrap(req, res, next) {
 
     setHasUsers(true); // only now — past the point of rollback
     req.session.userId = String(owner._id);
+    req.session.loginAt = Date.now();
     res.status(201).json({ user: owner.toJSON(), migrated: migration.total });
   } catch (err) {
     next(err);
@@ -70,7 +71,44 @@ export async function login(req, res, next) {
       return next(httpError(message, status));
     }
     req.session.userId = String(result.user._id);
+    req.session.loginAt = Date.now();
     res.json({ user: result.user.toJSON() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/** Current user's safe profile (spec 007 slice 5). toJSON strips all secrets. */
+export async function me(req, res, next) {
+  try {
+    const user = await User.findById(req.userId).select("username role isActive lastLoginAt");
+    res.json({ user: user.toJSON() });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Change own password (§6 self-protection): must prove the current password.
+ * Stamps passwordChangedAt (evicting every OTHER session on its next request)
+ * and bumps THIS session's loginAt so the caller stays logged in.
+ */
+export async function changePassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.validated;
+    const user = await User.findById(req.userId);
+    if (!user) return next(httpError("authentication required", 401));
+
+    if (!(await comparePassword(currentPassword, user.passwordHash))) {
+      return next(httpError("current password is incorrect", 400));
+    }
+
+    user.passwordHash = await hashPassword(newPassword);
+    user.passwordChangedAt = new Date();
+    await user.save();
+
+    req.session.loginAt = user.passwordChangedAt.getTime(); // keep this session alive
+    res.json({ ok: true });
   } catch (err) {
     next(err);
   }

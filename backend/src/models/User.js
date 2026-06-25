@@ -40,6 +40,11 @@ const userSchema = new Schema(
 
     lastLoginAt: { type: Date, default: null },
 
+    // Set whenever the password changes. Sessions issued before this instant are
+    // invalidated on their next request (spec 007 slice 5) — changing your
+    // password evicts every other (possibly stolen) session.
+    passwordChangedAt: { type: Date, default: null },
+
     // --- Login lockout state (§6) ---
     // failedAttempts accumulate within a rolling window anchored at
     // failedWindowStartedAt; 5 within 15 min sets lockedUntil. All three reset
@@ -58,6 +63,7 @@ userSchema.set("toJSON", {
     delete ret.failedAttempts;
     delete ret.failedWindowStartedAt;
     delete ret.lockedUntil;
+    delete ret.passwordChangedAt;
     delete ret.__v;
     return ret;
   },

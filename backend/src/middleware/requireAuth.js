@@ -27,13 +27,20 @@ export async function requireAuth(req, res, next) {
 
   let user;
   try {
-    user = await User.findById(userId).select("username role isActive");
+    user = await User.findById(userId).select("username role isActive passwordChangedAt");
   } catch (err) {
     return next(err);
   }
 
   if (!user || !user.isActive) {
     // Wipe the server-side session so this cookie is permanently dead.
+    return req.session.destroy(() => next(httpError("authentication required", 401)));
+  }
+
+  // Sessions issued before the user's last password change are evicted (a
+  // password change kicks out every other, possibly stolen, session). The
+  // session that performed the change has its loginAt bumped, so it survives.
+  if (user.passwordChangedAt && (!req.session.loginAt || req.session.loginAt < user.passwordChangedAt.getTime())) {
     return req.session.destroy(() => next(httpError("authentication required", 401)));
   }
 
