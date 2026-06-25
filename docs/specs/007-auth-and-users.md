@@ -149,8 +149,15 @@ mattered anywhere in this project.
   updatedAt        Date     auto
   lastLoginAt      Date     optional (set on successful login)
   failedAttempts   Number   default 0 (incremented on bad password, reset on success)
+  failedWindowStartedAt Date optional (anchors the rolling 15-min failure window;
+                        a fresh window opens when null or aged out; reset on success)
   lockedUntil      Date     optional (set on lockout, checked against now on login)
   ```
+  `failedWindowStartedAt` is required to implement the "5 failures within a 15-minute
+  **rolling** window" rule faithfully: a bare counter is either too lenient (never resets)
+  or too strict (resets only on success). The anchor lets a stale window age out so a
+  forgetful user isn't penalised across days. Stripped from `toJSON` like the other lockout
+  internals.
   Unique index on lowercase(username).
 - **No changes to existing models** beyond `createdBy` becoming a real, populated User
   reference instead of a placeholder ObjectId. The field is already there everywhere;
