@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { createWorkerSchema, resetPasswordSchema } from "@shared/validation/auth.js";
-import { Badge, Button, Modal, Field, TextInput, ErrorText } from "../../components/ui";
+import { Badge, Button, Modal, Field, TextInput, PasswordInput, ErrorText } from "../../components/ui";
 import { useAuth } from "./useAuth";
 import { useUsers, useCreateWorker, useDeactivateUser, useResetPassword } from "./hooks";
 
@@ -149,7 +149,7 @@ function CreateWorkerModal({ onClose }) {
           <TextInput value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="off" />
         </Field>
         <Field label="Temporary password" hint="At least 8 characters. Share it with them; they can change it from their profile.">
-          <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+          <PasswordInput value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
         </Field>
       </form>
     </Modal>
@@ -210,7 +210,7 @@ function ResetPasswordModal({ user, onClose }) {
             </ErrorText>
           )}
           <Field label="New password" hint="At least 8 characters.">
-            <TextInput type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoFocus autoComplete="new-password" />
+            <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoFocus autoComplete="new-password" />
           </Field>
         </form>
       )}

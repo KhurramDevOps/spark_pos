@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { changePasswordSchema } from "@shared/validation/auth.js";
-import { Badge, Button, Field, TextInput, ErrorText } from "../../components/ui";
+import { Badge, Button, Field, PasswordInput, ErrorText } from "../../components/ui";
 import { useAuth } from "./useAuth";
 import * as api from "./api";
 
@@ -83,13 +83,13 @@ function ChangePasswordCard() {
           </ErrorText>
         )}
         <Field label="Current password">
-          <TextInput type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
+          <PasswordInput value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" />
         </Field>
         <Field label="New password" hint="At least 8 characters.">
-          <TextInput type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+          <PasswordInput value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
         </Field>
         <Field label="Confirm new password">
-          <TextInput type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+          <PasswordInput value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
         </Field>
         <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : "Change password"}

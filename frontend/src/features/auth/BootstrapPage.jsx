@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { bootstrapSchema } from "@shared/validation/auth.js";
-import { Field, TextInput, Button, ErrorText } from "../../components/ui";
+import { Field, TextInput, PasswordInput, Button, ErrorText } from "../../components/ui";
 import { useAuth } from "./useAuth";
 import AuthShell from "./AuthShell";
 
@@ -51,8 +51,7 @@ export default function BootstrapPage() {
           <TextInput value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
         </Field>
         <Field label="Password" hint="At least 8 characters.">
-          <TextInput
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"

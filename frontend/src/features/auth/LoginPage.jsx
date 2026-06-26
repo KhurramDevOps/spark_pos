@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { loginSchema } from "@shared/validation/auth.js";
-import { Field, TextInput, Button, ErrorText } from "../../components/ui";
+import { Field, TextInput, PasswordInput, Button, ErrorText } from "../../components/ui";
 import { useAuth } from "./useAuth";
 import AuthShell from "./AuthShell";
 
@@ -42,8 +42,7 @@ export default function LoginPage() {
           />
         </Field>
         <Field label="Password">
-          <TextInput
-            type="password"
+          <PasswordInput
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="current-password"
