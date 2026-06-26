@@ -45,10 +45,21 @@ export async function aggregateCashFlows({ start, end }) {
     ]);
 
   // Gross profit: Σ (unitPrice − costAtTime)·qty over non-voided sales in the window…
+  // Quick-sale lines (spec 008 / ADR-016) have NO cost basis, so they contribute
+  // EXACTLY 0 to gross profit — they are skipped here, never read as costAtTime 0.
+  // Their revenue is summed separately into `quickSalesRevenue` for display, never
+  // folded into profit. Predicate is `=== "quick"` (not `!== "item"`): legacy lines
+  // predate the `kind` field and read back as undefined via .lean() — those are item
+  // lines and must keep their existing profit treatment.
   const sales = await Sale.find({ voided: false, ...range }).select("lines").lean();
   let grossProfit = "0";
+  let quickSalesRevenue = "0";
   for (const s of sales) {
     for (const l of s.lines) {
+      if (l.kind === "quick") {
+        quickSalesRevenue = add(quickSalesRevenue, decimalToString(l.lineTotal));
+        continue;
+      }
       grossProfit = add(
         grossProfit,
         multiply(subtract(decimalToString(l.unitPrice), decimalToString(l.costAtTime)), decimalToString(l.qty))
@@ -75,7 +86,7 @@ export async function aggregateCashFlows({ start, end }) {
     }
   }
 
-  return { cashSales, customerPayments, supplierPayments, cashRefunds, expenses, drawerIn, drawerOut, grossProfit };
+  return { cashSales, customerPayments, supplierPayments, cashRefunds, expenses, drawerIn, drawerOut, grossProfit, quickSalesRevenue };
 }
 
 /**

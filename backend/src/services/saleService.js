@@ -117,7 +117,27 @@ export async function recordSale(input, { userId } = {}) {
       if (isNegative(unitPrice)) {
         throw httpError(`${where}: unitPrice cannot be negative`, 400);
       }
+      const lineTotal = multiply(qty, unitPrice); // paisa, full precision
+      totalExact = add(totalExact, lineTotal);
 
+      // Quick line (spec 008 / ADR-016): an uncatalogued good typed at checkout.
+      // Real revenue, NO cost basis — it stores only name + qty + unitPrice +
+      // lineTotal, with NO costAtTime/itemId, touches no Item, and moves no stock.
+      // (No costAtTime is the whole point: an unknown cost must not become a 0.)
+      if (line.kind === "quick") {
+        const name = typeof line.name === "string" ? line.name.trim() : "";
+        if (!name) throw httpError(`${where}: a quick-sale line needs a name`, 400);
+        storedLines.push({
+          kind: "quick",
+          name,
+          qty: toDecimal128(qty),
+          unitPrice: toDecimal128(unitPrice),
+          lineTotal: toDecimal128(lineTotal),
+        });
+        continue;
+      }
+
+      // Item line (spec 004): catalogued item — snapshot cost, decrement stock.
       const key = String(line.itemId);
       let item = itemsById.get(key);
       if (!item) {
@@ -131,11 +151,10 @@ export async function recordSale(input, { userId } = {}) {
       // move avgCost. These are the source of truth for this line's profit.
       const costAtTime = decimalToString(item.avgCost);
       const suggestedPrice = suggestedPriceFor(item, priceMode);
-      const lineTotal = multiply(qty, unitPrice); // paisa, full precision
-      totalExact = add(totalExact, lineTotal);
       removedByItem.set(key, add(removedByItem.get(key) ?? "0", qty));
 
       storedLines.push({
+        kind: "item",
         itemId: item._id,
         qty: toDecimal128(qty),
         unitPrice: toDecimal128(unitPrice),
@@ -186,19 +205,24 @@ export async function recordSale(input, { userId } = {}) {
       { session }
     );
 
-    // One `sale` StockMovement per line (negative qty), carrying the cost snapshot
-    // as costAtTime (audit symmetry). Qty-only in replay — never moves avgCost.
-    await StockMovement.create(
-      storedLines.map((l) => ({
-        itemId: l.itemId,
-        qty: toDecimal128(negate(decimalToString(l.qty))),
-        type: "sale",
-        costAtTime: l.costAtTime,
-        refId: sale._id,
-        createdBy: userId,
-      })),
-      { session, ordered: true }
-    );
+    // One `sale` StockMovement per ITEM line (negative qty), carrying the cost
+    // snapshot as costAtTime (audit symmetry). Qty-only in replay — never moves
+    // avgCost. Quick lines (spec 008) have no item/stock, so they get NO movement;
+    // a quick-only sale writes zero StockMovements.
+    const itemLines = storedLines.filter((l) => l.kind === "item");
+    if (itemLines.length > 0) {
+      await StockMovement.create(
+        itemLines.map((l) => ({
+          itemId: l.itemId,
+          qty: toDecimal128(negate(decimalToString(l.qty))),
+          type: "sale",
+          costAtTime: l.costAtTime,
+          refId: sale._id,
+          createdBy: userId,
+        })),
+        { session, ordered: true }
+      );
+    }
 
     if (paymentType === "credit") {
       customer.balance = toDecimal128(add(decimalToString(customer.balance), total));

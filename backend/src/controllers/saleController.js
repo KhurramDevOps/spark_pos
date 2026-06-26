@@ -8,12 +8,14 @@ export const create = wrap(async (req, res) => {
   const v = req.validated;
   // Convert each line's unitPrice rupees -> paisa string at the boundary; the
   // service works in paisa (same pattern as the purchase controller — one
-  // conversion path via the shared money validator).
-  const lines = v.lines.map((l) => ({
-    itemId: l.itemId,
-    qty: l.qty,
-    unitPrice: String(rupeesToPaisa(l.unitPrice, "unitPrice").value),
-  }));
+  // conversion path via the shared money validator). A quick line (spec 008)
+  // carries a name and no itemId; an item line carries an itemId and no name.
+  const lines = v.lines.map((l) => {
+    const common = { qty: l.qty, unitPrice: String(rupeesToPaisa(l.unitPrice, "unitPrice").value) };
+    return l.kind === "quick"
+      ? { kind: "quick", name: l.name, ...common }
+      : { kind: "item", itemId: l.itemId, ...common };
+  });
 
   const { sale, customer } = await recordSale(
     {

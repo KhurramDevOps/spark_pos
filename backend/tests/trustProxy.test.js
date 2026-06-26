@@ -16,9 +16,12 @@ let app;
 
 before(async () => {
   await mongoose.connect(TEST_URI);
+  // Pre-create the sessions collection up front and await it, so connect-mongo's
+  // background collection/index setup isn't still pending when after() drops the
+  // DB (else its implicit createCollection races the drop under parallel test load
+  // and fails the file). Mirrors prodServing / setupGateSpa.
+  await mongoose.connection.createCollection("sessions").catch(() => {});
   app = createApp();
-  // Flush connect-mongo's background sessions-index build before teardown can
-  // disconnect the shared client (mirrors prodServing.test.js).
   await mongoose.connection.collection("sessions").createIndex({ expires: 1 }, { expireAfterSeconds: 0 });
 });
 

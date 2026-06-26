@@ -38,6 +38,9 @@ export async function windowTotals(range) {
     grossProfit: flows.grossProfit,
     expenses: flows.expenses,
     net: subtract(flows.grossProfit, flows.expenses),
+    // spec 008: revenue from quick (uncatalogued) lines — included in `revenue`
+    // above, but called out so the headline can show the cost-untracked portion.
+    quickSalesRevenue: flows.quickSalesRevenue,
   };
 }
 
@@ -73,6 +76,7 @@ async function originalSaleLines(returns) {
   const byKey = new Map();
   for (const s of retSales) {
     for (const l of s.lines) {
+      if (l.kind === "quick") continue; // quick lines aren't returnable (spec 008) — no cost to reverse
       byKey.set(`${s._id}:${l.itemId}`, { price: decimalToString(l.unitPrice), cost: decimalToString(l.costAtTime) });
     }
   }
@@ -104,6 +108,7 @@ export async function aggregateItemPerformance({ start, end }) {
   const soldItemIds = new Set();
   for (const s of sales) {
     for (const l of s.lines) {
+      if (l.kind === "quick") continue; // spec 008: uncatalogued, no per-item row, no cost=0 profit
       soldItemIds.add(String(l.itemId));
       const qty = decimalToString(l.qty);
       const lineProfit = multiply(subtract(decimalToString(l.unitPrice), decimalToString(l.costAtTime)), qty);
