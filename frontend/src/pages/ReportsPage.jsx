@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ErrorText } from "../components/ui";
+import { formatPaisa } from "../lib/format";
 import { useReport } from "../features/reports/hooks";
 import WindowPicker from "../features/reports/WindowPicker";
 import HeadlineTiles from "../features/reports/HeadlineTiles";
@@ -34,8 +35,16 @@ export default function ReportsPage({ onNavigate }) {
       {data && !needsDates && (
         <div className={`space-y-5 ${isFetching ? "opacity-60 transition-opacity" : ""}`}>
           <HeadlineTiles headline={data.headline} />
+          {data.headline.quickSalesRevenue && Number(data.headline.quickSalesRevenue) > 0 && (
+            // spec 008: included in Revenue above, excluded from Gross profit / Net.
+            <p className="-mt-2 text-xs text-fg-muted">
+              Includes <span className="font-medium">{formatPaisa(data.headline.quickSalesRevenue)}</span> in quick-sale
+              revenue (uncatalogued items) — counted in Revenue, but its cost is untracked, so it is excluded from Gross
+              profit and Net.
+            </p>
+          )}
           <TrendChart trend={data.trend} onDayClick={(date) => onNavigate?.("dailyClose", date)} />
-          <ItemPerformance items={data.items} deadStock={data.deadStock} />
+          <ItemPerformance items={data.items} deadStock={data.deadStock} quickSales={data.quickSales} />
           <div className="grid gap-5 lg:grid-cols-2">
             <ExpenseBreakdown breakdown={data.expenseBreakdown} />
             <KhataSnapshot khata={data.khata} onNavigate={onNavigate} />

@@ -6,7 +6,9 @@ import ItemPicker from "../features/purchases/ItemPicker";
 import { useCreateSale, useCustomers, useCreateCustomer } from "../features/sales/hooks";
 
 let lineKey = 0;
-const emptyLine = () => ({ key: ++lineKey, item: null, qty: "1", unitPrice: "" });
+const emptyLine = () => ({ key: ++lineKey, kind: "item", item: null, qty: "1", unitPrice: "" });
+// A quick-sale line (spec 008): a free-text name + price, no catalogued item.
+const emptyQuickLine = () => ({ key: ++lineKey, kind: "quick", name: "", qty: "1", unitPrice: "" });
 
 const rs = (n) =>
   `Rs ${Number(n).toLocaleString("en-PK", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -21,6 +23,25 @@ function suggestedPaisa(item, priceMode) {
 
 // Per-line derived numbers (all from the item the client already has).
 function lineCalc(l) {
+  // Quick line (spec 008): no item, no cost basis — ready once it has a name, a
+  // valid qty, and a price. No below-cost / profit (cost is unknown, not 0).
+  if (l.kind === "quick") {
+    const pricePaisa = rupeesToPaisa(l.unitPrice);
+    const qty = Number(l.qty);
+    const validQty = Number.isFinite(qty) && qty > 0;
+    const ready = Boolean(l.name?.trim()) && pricePaisa != null && validQty;
+    return {
+      quick: true,
+      cost: null,
+      pricePaisa,
+      qty,
+      ready,
+      lineTotal: ready ? (pricePaisa * qty) / 100 : null, // rupees
+      belowCost: false,
+      losing: 0,
+      profit: null,
+    };
+  }
   const cost = l.item ? Number(decimalText(l.item.avgCost)) : null; // paisa
   const pricePaisa = rupeesToPaisa(l.unitPrice); // null if blank/invalid
   const qty = Number(l.qty);
@@ -51,6 +72,7 @@ export default function SalesPage() {
 
   const setLine = (key, patch) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const addLine = () => setLines((ls) => [...ls, emptyLine()]);
+  const addQuickLine = () => setLines((ls) => [...ls, emptyQuickLine()]);
   const removeLine = (key) => setLines((ls) => (ls.length > 1 ? ls.filter((l) => l.key !== key) : ls));
 
   // Pick an item -> prefill its unit price from the suggested price for this mode.
@@ -92,8 +114,12 @@ export default function SalesPage() {
       paymentType,
       priceMode,
       lines: lines
-        .filter((l) => l.item)
-        .map((l) => ({ itemId: l.item._id, qty: l.qty.trim(), unitPrice: l.unitPrice.trim() })),
+        .filter((l) => (l.kind === "quick" ? l.name.trim() : l.item))
+        .map((l) =>
+          l.kind === "quick"
+            ? { kind: "quick", name: l.name.trim(), qty: l.qty.trim(), unitPrice: l.unitPrice.trim() }
+            : { kind: "item", itemId: l.item._id, qty: l.qty.trim(), unitPrice: l.unitPrice.trim() }
+        ),
       ...(customerId ? { customerId } : {}),
       ...(note.trim() ? { note: note.trim() } : {}),
     };
@@ -128,9 +154,13 @@ export default function SalesPage() {
     // cart we just submitted (still in state until "New sale").
     const nameById = {};
     lines.forEach((l) => { if (l.item) nameById[l.item._id] = l.item.name; });
+    // Profit excludes quick lines (spec 008): they have no cost basis, so their
+    // profit is unknown — never summed as if it were 0.
     const profit = sale.lines.reduce(
       (s, l) =>
-        s + (Number(decimalText(l.unitPrice)) - Number(decimalText(l.costAtTime))) * Number(decimalText(l.qty)) / 100,
+        l.kind === "quick"
+          ? s
+          : s + (Number(decimalText(l.unitPrice)) - Number(decimalText(l.costAtTime))) * Number(decimalText(l.qty)) / 100,
       0
     );
     return (
@@ -151,18 +181,21 @@ export default function SalesPage() {
             </thead>
             <tbody className="divide-y divide-line">
               {sale.lines.map((l, i) => {
+                const isQuick = l.kind === "quick";
                 const price = Number(decimalText(l.unitPrice));
-                const cost = Number(decimalText(l.costAtTime));
                 const qty = Number(decimalText(l.qty));
-                const lp = ((price - cost) * qty) / 100;
+                const lp = isQuick ? null : ((price - Number(decimalText(l.costAtTime))) * qty) / 100;
                 return (
                   <tr key={i}>
-                    <td className="px-3 py-2 text-fg">{nameById[l.itemId] ?? l.itemId?.name ?? "—"}</td>
+                    <td className="px-3 py-2 text-fg">
+                      {isQuick ? l.name : nameById[l.itemId] ?? l.itemId?.name ?? "—"}
+                      {isQuick && <span className="ml-1.5 text-xs text-fg-subtle">quick · no cost</span>}
+                    </td>
                     <td className="px-3 py-2 text-right tabular-nums">{qty}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(price / 100)}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{rs(Number(decimalText(l.lineTotal)) / 100)}</td>
-                    <td className={`px-3 py-2 text-right tabular-nums ${lp < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
-                      {rs(lp)}
+                    <td className={`px-3 py-2 text-right tabular-nums ${lp == null ? "text-fg-subtle" : lp < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                      {lp == null ? "—" : rs(lp)}
                     </td>
                   </tr>
                 );
@@ -232,20 +265,38 @@ export default function SalesPage() {
                   c.belowCost ? "border-red-300 dark:border-red-800 bg-red-50/40 dark:bg-red-950/40" : "border-line"
                 }`}
               >
-                <div className="mb-2">
-                  <ItemPicker
-                    selected={l.item}
-                    autoFocus={idx === 0}
-                    onSelect={(item) => pickItem(l.key, item)}
-                    onClear={() => setLine(l.key, { item: null, unitPrice: "" })}
-                  />
-                </div>
-                {l.item && (
-                  <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
-                    <span>in stock: {decimalText(l.item.stockQty)} {l.item.baseUnit}</span>
-                    <span>·</span>
-                    <span>cost {rs(Number(decimalText(l.item.avgCost)) / 100)}</span>
+                {l.kind === "quick" ? (
+                  // Quick line (spec 008): free-text name, no item/stock/cost.
+                  <div className="mb-2">
+                    <div className="mb-1 flex items-center gap-2">
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-xs font-medium text-fg-muted">Quick item</span>
+                      <span className="text-xs text-fg-subtle">no inventory · cost not tracked</span>
+                    </div>
+                    <TextInput
+                      value={l.name}
+                      autoFocus
+                      onChange={(e) => setLine(l.key, { name: e.target.value })}
+                      placeholder="Name (e.g. wall screws)"
+                    />
                   </div>
+                ) : (
+                  <>
+                    <div className="mb-2">
+                      <ItemPicker
+                        selected={l.item}
+                        autoFocus={idx === 0}
+                        onSelect={(item) => pickItem(l.key, item)}
+                        onClear={() => setLine(l.key, { item: null, unitPrice: "" })}
+                      />
+                    </div>
+                    {l.item && (
+                      <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
+                        <span>in stock: {decimalText(l.item.stockQty)} {l.item.baseUnit}</span>
+                        <span>·</span>
+                        <span>cost {rs(Number(decimalText(l.item.avgCost)) / 100)}</span>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="flex items-end gap-2">
                   <div className="w-24">
@@ -285,9 +336,14 @@ export default function SalesPage() {
               </div>
             );
           })}
-          <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addLine}>
-            + Add item
-          </button>
+          <div className="flex items-center gap-4">
+            <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addLine}>
+              + Add item
+            </button>
+            <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addQuickLine}>
+              + Quick item
+            </button>
+          </div>
         </div>
 
         {/* Secondary fields — quieted so the cart + checkout dominate the eye path. */}

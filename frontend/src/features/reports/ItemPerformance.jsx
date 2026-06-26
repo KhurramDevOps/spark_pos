@@ -12,12 +12,18 @@ const num = (s) => Number(decimalText(s));
 
 /** Item performance table (spec 006 §4.4), sortable, default profit desc, top 20
  *  + expand. Numbers already net returns server-side. Dead stock listed below. */
-export default function ItemPerformance({ items, deadStock }) {
+export default function ItemPerformance({ items, deadStock, quickSales }) {
   const [sortKey, setSortKey] = useState("grossProfit");
   const [showAll, setShowAll] = useState(false);
 
   const sorted = useMemo(() => [...items].sort((a, b) => num(b[sortKey]) - num(a[sortKey])), [items, sortKey]);
   const rows = showAll ? sorted : sorted.slice(0, 20);
+
+  // spec 008: quick (uncatalogued) lines roll up into ONE synthetic row — revenue
+  // shown, profit shown as "—" (NOT 0, the cost is unknown). Always visible (not
+  // subject to the top-20 cap), and it makes the table appear even on a quick-only
+  // day. It never sorts/competes with catalogued rows.
+  const hasQuick = quickSales && Number(quickSales.lineCount) > 0;
 
   return (
     <div className="rounded-lg border border-line bg-surface p-4">
@@ -38,7 +44,7 @@ export default function ItemPerformance({ items, deadStock }) {
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && !hasQuick ? (
         <p className="text-sm text-fg-muted">No sales in this window.</p>
       ) : (
         <>
@@ -71,6 +77,18 @@ export default function ItemPerformance({ items, deadStock }) {
                   <td className="py-1.5 text-right tabular-nums text-fg-muted">{decimalText(r.stock)}</td>
                 </tr>
               ))}
+              {hasQuick && (
+                <tr className="bg-muted/40">
+                  <td className="py-1.5 italic text-fg-muted">
+                    Quick sales <span className="text-fg-subtle">(uncatalogued)</span>
+                  </td>
+                  <td className="py-1.5 text-fg-subtle">—</td>
+                  <td className="py-1.5 text-right tabular-nums">{decimalText(quickSales.qtySold)}</td>
+                  <td className="py-1.5 text-right tabular-nums">{formatPaisa(quickSales.revenue)}</td>
+                  <td className="py-1.5 text-right tabular-nums text-fg-subtle" title="Cost not tracked — profit unknown">—</td>
+                  <td className="py-1.5 text-right text-fg-subtle">—</td>
+                </tr>
+              )}
             </tbody>
           </table>
           {sorted.length > 20 && (

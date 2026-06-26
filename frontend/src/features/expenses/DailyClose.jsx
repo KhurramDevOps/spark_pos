@@ -207,6 +207,20 @@ export default function DailyClose({ initialDate } = {}) {
         <section className="rounded-lg border border-line bg-surface p-4">
           <h2 className="mb-2 text-sm font-semibold text-fg">Profit &amp; expenses</h2>
           <MathRow label="Gross profit today" paisa={data.grossProfit} />
+          {Number(data.quickSalesCount) > 0 && (
+            // spec 008: quick-sale revenue is real cash (in Expected cash above) but
+            // its cost is unknown — shown here beside gross profit, NEVER added into
+            // it or into Net. No sign: this row is informational, not part of the math.
+            <div className="flex items-baseline justify-between py-1.5 text-sm text-fg-muted">
+              <span>
+                Quick sales{" "}
+                <span className="text-fg-subtle">
+                  (cost not tracked · {data.quickSalesCount} {Number(data.quickSalesCount) === 1 ? "line" : "lines"})
+                </span>
+              </span>
+              <span className="tabular-nums">{formatPaisa(data.quickSalesRevenue)}</span>
+            </div>
+          )}
           <MathRow sign="−" label="Expenses today" paisa={data.expenses} />
           {/* "Was the day worth it?" — the dominant answer. */}
           <div className="mt-1 flex items-baseline justify-between border-t border-line pt-3">
@@ -216,6 +230,8 @@ export default function DailyClose({ initialDate } = {}) {
           <p className="mt-3 text-xs text-fg-muted">
             Gross profit is sales minus cost (weighted-average) for non-voided sales, adjusted
             for returns. Net is display-only — never folded into per-sale profit.
+            {Number(data.quickSalesCount) > 0 &&
+              " Quick-sale revenue is in Expected cash above, but its cost is unknown, so it is excluded from Gross profit and Net."}
           </p>
         </section>
       </div>

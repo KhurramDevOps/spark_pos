@@ -105,10 +105,20 @@ export async function aggregateItemPerformance({ start, end }) {
     });
   };
 
+  // Quick lines (spec 008) get NO per-item row and never a cost=0 profit; instead
+  // they roll up into one synthetic aggregate (qty + revenue, profit unknown) the
+  // UI renders as a single "Quick sales (uncatalogued)" row with profit shown "—".
+  const quick = { qtySold: "0", revenue: "0", lineCount: 0 };
+
   const soldItemIds = new Set();
   for (const s of sales) {
     for (const l of s.lines) {
-      if (l.kind === "quick") continue; // spec 008: uncatalogued, no per-item row, no cost=0 profit
+      if (l.kind === "quick") {
+        quick.qtySold = add(quick.qtySold, decimalToString(l.qty));
+        quick.revenue = add(quick.revenue, decimalToString(l.lineTotal));
+        quick.lineCount += 1;
+        continue;
+      }
       soldItemIds.add(String(l.itemId));
       const qty = decimalToString(l.qty);
       const lineProfit = multiply(subtract(decimalToString(l.unitPrice), decimalToString(l.costAtTime)), qty);
@@ -148,7 +158,7 @@ export async function aggregateItemPerformance({ start, end }) {
     };
   });
   rows.sort((a, b) => Number(b.grossProfit) - Number(a.grossProfit));
-  return { rows, soldItemIds };
+  return { rows, soldItemIds, quick };
 }
 
 /**
@@ -223,9 +233,13 @@ export async function getReport(input, now = new Date()) {
       grossProfit: { value: totals.grossProfit, delta: delta(totals.grossProfit, priorTotals.grossProfit) },
       expenses: { value: totals.expenses, delta: delta(totals.expenses, priorTotals.expenses) },
       net: { value: totals.net, delta: delta(totals.net, priorTotals.net) },
+      // spec 008: quick-sale revenue is INSIDE `revenue` but called out so the UI
+      // can caption the cost-untracked portion (its profit is excluded from above).
+      quickSalesRevenue: totals.quickSalesRevenue,
     },
     trend,
     items: itemPerf.rows,
+    quickSales: itemPerf.quick, // { qtySold, revenue, lineCount } — the synthetic item-perf row
     deadStock,
     expenseBreakdown,
     khata,

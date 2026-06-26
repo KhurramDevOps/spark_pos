@@ -68,23 +68,31 @@ export async function voidSale(saleId, { userId } = {}) {
       );
     }
 
+    // Quick lines (spec 008) have no item/stock — they were never decremented, so
+    // there is nothing to put back. Void reverses their cash/khata via sale.total
+    // (below), but skips them here. (`!== "quick"` treats legacy lines, which
+    // predate `kind`, as item lines.)
+    const itemLines = sale.lines.filter((l) => l.kind !== "quick");
+
     // Reversing rows: positive qty back in, type "reversal", costAtTime carried
     // for audit only (never recomputes avg), reversalRef intentionally UNSET.
-    await StockMovement.create(
-      sale.lines.map((l) => ({
-        itemId: l.itemId,
-        qty: l.qty, // positive — stock back in
-        type: "reversal",
-        costAtTime: l.costAtTime,
-        refId: sale._id,
-        createdBy: userId,
-      })),
-      { session, ordered: true }
-    );
+    if (itemLines.length > 0) {
+      await StockMovement.create(
+        itemLines.map((l) => ({
+          itemId: l.itemId,
+          qty: l.qty, // positive — stock back in
+          type: "reversal",
+          costAtTime: l.costAtTime,
+          refId: sale._id,
+          createdBy: userId,
+        })),
+        { session, ordered: true }
+      );
+    }
 
     // Add stock back per affected item (a sale may repeat an item across lines).
     const addedByItem = new Map();
-    for (const l of sale.lines) {
+    for (const l of itemLines) {
       const key = String(l.itemId);
       addedByItem.set(key, add(addedByItem.get(key) ?? "0", decimalToString(l.qty)));
     }

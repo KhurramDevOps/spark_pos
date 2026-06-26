@@ -54,10 +54,12 @@ export async function aggregateCashFlows({ start, end }) {
   const sales = await Sale.find({ voided: false, ...range }).select("lines").lean();
   let grossProfit = "0";
   let quickSalesRevenue = "0";
+  let quickSalesCount = 0; // number of quick lines (for the "Rs Y (N lines)" display)
   for (const s of sales) {
     for (const l of s.lines) {
       if (l.kind === "quick") {
         quickSalesRevenue = add(quickSalesRevenue, decimalToString(l.lineTotal));
+        quickSalesCount += 1;
         continue;
       }
       grossProfit = add(
@@ -86,7 +88,7 @@ export async function aggregateCashFlows({ start, end }) {
     }
   }
 
-  return { cashSales, customerPayments, supplierPayments, cashRefunds, expenses, drawerIn, drawerOut, grossProfit, quickSalesRevenue };
+  return { cashSales, customerPayments, supplierPayments, cashRefunds, expenses, drawerIn, drawerOut, grossProfit, quickSalesRevenue, quickSalesCount };
 }
 
 /**
