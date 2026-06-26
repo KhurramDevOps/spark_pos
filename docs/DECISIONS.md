@@ -15,6 +15,47 @@ Format:
 
 ---
 
+## ADR-016 — "Quick Sale" lines: revenue without a cost basis, structurally separated from COGS profit
+- Date: 2026-06-27
+- Status: accepted
+- Context: The shop sells tiny, high-count, low-value goods (screws, lugs, connectors) not worth
+  cataloguing as Items. A worker must be able to ring these up by typing a name + price at
+  checkout. Such a line carries **real revenue but no cost basis** — no avgCost, no purchase
+  history. The hazard is the exact shape of the 006c bug: an unknown cost silently treated as 0,
+  which would make profit = full revenue and overstate it ~100%. (Spec 008.)
+- Decision:
+  - A `Sale.lines[]` entry gains a `kind` discriminator: `"item"` (default — unchanged, carries
+    `itemId` + `costAtTime` + `suggestedPrice`) or `"quick"` (carries `name` + `qty` + `unitPrice`
+    + `lineTotal`). A quick line **deliberately has NO `costAtTime` and NO `itemId` field at all** —
+    absence, not zero. Absence forces every profit computation to branch on `kind` rather than read
+    a 0. Backward compatible: existing lines default to `"item"` with all fields intact; no
+    migration.
+  - Quick lines have **no stock effect**: `recordSale` writes no `sale` StockMovement and touches
+    no `Item.stock` for them; void restores stock for item lines only.
+  - **Revenue includes quick lines** (`Sale.total`, `cashSales` → Daily Close "Expected cash in
+    drawer", Reports revenue) — it is real cash, and the cash/drawer math needs no change because
+    it already sums `Sale.total`.
+  - **Every gross-profit computation skips `kind !== "item"` lines** (the two loops in
+    `dailyCloseService` and `reportsService`). Quick-sale profit is *unknown* and is never formed,
+    never defaulted to 0, never shown as a per-item performance row. The profit-based "Net for the
+    day" (`grossProfit − expenses`) therefore also excludes quick sales — it is NOT the cash figure
+    and must not be conflated with "Expected cash in drawer".
+  - Quick-sale revenue is surfaced as its **own explicit figure** ("Quick-sale revenue (cost
+    untracked)") on Daily Close and Reports, and as a single synthetic "Quick sales (uncatalogued)"
+    row in Item Performance with profit shown as "—", so the revenue-vs-profit gap is visible, not
+    mysterious.
+  - **No StockMovement-equivalent and no new ledger.** Quick lines have no stock/avgCost to replay;
+    the immutable `Sale` record (`name + qty + unitPrice + lineTotal`, `createdBy + date`) is the
+    complete audit trail, and the cash side is captured by aggregate-on-read (ADR-011).
+  - Permissions (v1): workers may create quick sales like any sale (no toggle). Reversal (v1):
+    whole-sale void only (reverses cash/khata, no stock); partial per-line quick returns deferred
+    until proven needed (the return flow is itemId + stock keyed).
+- Consequences: sales become heterogeneous — a small `kind` branch in `recordSale`, `voidSale`, and
+  the two profit loops. Margin on a quick-heavy day reads *low* unless the separate quick-revenue
+  figure is read alongside, which is honest and the reason that figure is mandatory. Builds on the
+  cost-integrity stance of ADR-013; same principle: never let an unknown cost masquerade as a known
+  one. Supersedes nothing; the Sale-line shape from spec 004 is extended, not replaced.
+
 ## ADR-015 — Every deployed endpoint requires auth except a closed, enumerated public list
 - Date: 2026-06-25
 - Status: accepted
