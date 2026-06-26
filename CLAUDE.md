@@ -23,7 +23,10 @@ picker, and Reports; opening stock is a first-class cost-bearing declaration wit
 repair tool for legacy cost = 0 items (ADR-013); **Quick Sale** lines sell uncatalogued goods
 (name + price, no stock, no cost basis) — their revenue counts as cash but is kept out of COGS
 gross profit everywhere it's reported (ADR-016). **The correctness foundation is complete and
-the profit numbers are honest. Next: Phase 7 — AI layer (reasons over those numbers).**
+the profit numbers are honest. Next: confirm the real ~200-item CSV import has been run against
+production; the totals/Khata-labeling slice on Customers/Suppliers; the rest of the visual polish
+pass (Reports/Customers/Suppliers/Sales History); start using the now-live S3/R2 image upload for
+real product photos. Phase 7 (AI layer) remains last in the queue.**
 
 ## Golden rules
 
