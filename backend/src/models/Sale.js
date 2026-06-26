@@ -5,20 +5,36 @@ const { Schema } = mongoose;
 const PAYMENT_TYPES = ["cash", "credit"];
 const PRICE_MODES = ["retail", "wholesale"];
 
-// One line of a sale (spec 004). All money in paisa (Decimal128). `costAtTime` is
-// the item's avgCost snapshotted at the moment of sale — the COGS basis, never
-// recomputed. `suggestedPrice` is the server-derived pre-bargain price (for
-// discount reporting); `unitPrice` is what was actually charged. lineTotal keeps
-// full precision (qty·unitPrice). Below-cost is DERIVED (unitPrice < costAtTime),
-// not stored.
+// One line of a sale. Polymorphic on `kind` (spec 008 / ADR-016):
+//   - "item"  (default; spec 004): a catalogued Item. Carries `itemId`,
+//     `suggestedPrice`, and `costAtTime` — the avgCost snapshot at sale time, the
+//     COGS basis, never recomputed. Below-cost is DERIVED (unitPrice < costAtTime).
+//   - "quick" (spec 008): an uncatalogued good typed at checkout (screws, etc.).
+//     Carries a free-text `name` and NO cost basis — `itemId`/`costAtTime`/
+//     `suggestedPrice` are ABSENT (not zero). A quick line has real revenue but an
+//     unknown cost, so it must never be summed into COGS gross profit (ADR-016).
+// All money in paisa (Decimal128). `unitPrice` is what was charged; `lineTotal`
+// keeps full precision (qty·unitPrice). Both kinds carry qty/unitPrice/lineTotal.
+const isItemLine = function () {
+  return this.kind === "item";
+};
+const isQuickLine = function () {
+  return this.kind === "quick";
+};
 const saleLineSchema = new Schema(
   {
-    itemId: { type: Schema.Types.ObjectId, ref: "Item", required: true },
+    kind: { type: String, enum: ["item", "quick"], default: "item", required: true },
     qty: { type: Schema.Types.Decimal128, required: true }, // base unit, > 0
     unitPrice: { type: Schema.Types.Decimal128, required: true }, // paisa, >= 0 (0 allowed)
-    suggestedPrice: { type: Schema.Types.Decimal128, required: true }, // paisa, server-derived
-    costAtTime: { type: Schema.Types.Decimal128, required: true }, // paisa, avgCost snapshot (COGS)
     lineTotal: { type: Schema.Types.Decimal128, required: true }, // paisa, full precision
+
+    // item-kind only (required when kind === "item", absent for quick):
+    itemId: { type: Schema.Types.ObjectId, ref: "Item", required: isItemLine },
+    suggestedPrice: { type: Schema.Types.Decimal128, required: isItemLine }, // paisa, server-derived
+    costAtTime: { type: Schema.Types.Decimal128, required: isItemLine }, // paisa, avgCost snapshot (COGS)
+
+    // quick-kind only (required when kind === "quick", absent for item):
+    name: { type: String, trim: true, minlength: 1, maxlength: 120, required: isQuickLine },
   },
   { _id: false }
 );
