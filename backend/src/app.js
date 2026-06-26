@@ -1,4 +1,6 @@
 import express from "express";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import healthRoutes from "./routes/healthRoutes.js";
 import itemRoutes from "./routes/itemRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
@@ -73,6 +75,27 @@ export function createApp() {
       if (err && !res.headersSent) res.status(404).end();
     });
   });
+
+  // Production single-origin serving (forced by the SameSite=Strict cookie — there
+  // is no Vite same-origin proxy in prod). Dev keeps using the Vite dev server, so
+  // this whole block is gated on NODE_ENV=production. Mounted AFTER every /api route
+  // and the image route above, so those are answered before static ever runs.
+  if (process.env.NODE_ENV === "production") {
+    const distDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../frontend/dist");
+
+    // Built assets: index.html at /, plus /assets/*, favicon, icons. For an /api/*
+    // path no file matches, so this calls next() and the request 404s as JSON below.
+    app.use(express.static(distDir));
+
+    // SPA fallback: a deep client route (e.g. /reports) resolves to index.html so
+    // client-side routing can take over. It must NOT swallow /api/* or the image
+    // route — those already ran above; anything under /api that reached here is an
+    // unmatched API path and must 404 as JSON (notFound), never return the shell.
+    app.use((req, res, next) => {
+      if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+      res.sendFile(path.join(distDir, "index.html"), (err) => err && next(err));
+    });
+  }
 
   app.use(notFound);
   app.use(errorHandler);
