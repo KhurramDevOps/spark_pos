@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Badge, Button } from "../../components/ui";
+import { useAuth } from "../auth/useAuth";
 import { decimalText, formatPaisa } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
 import StatTiles from "../../components/StatTiles";
@@ -8,6 +9,9 @@ import CustomerForm from "./CustomerForm";
 import CustomerDetail from "./CustomerDetail";
 
 export default function CustomersList() {
+  // Edit/deactivate are owner-only (server 403s them — slice 7); workers still
+  // get read + record-payment. Hide the controls rather than show a 403 toast.
+  const { isOwner } = useAuth();
   const [showInactive, setShowInactive] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [openId, setOpenId] = useState(null);
@@ -85,16 +89,18 @@ export default function CustomersList() {
                       {bal.text}
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <button
-                        className="text-xs font-medium text-fg-muted hover:text-fg"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActive.mutate({ id: c._id, active: !c.isActive });
-                        }}
-                        disabled={setActive.isPending}
-                      >
-                        {c.isActive ? "Deactivate" : "Reactivate"}
-                      </button>
+                      {isOwner && (
+                        <button
+                          className="text-xs font-medium text-fg-muted hover:text-fg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActive.mutate({ id: c._id, active: !c.isActive });
+                          }}
+                          disabled={setActive.isPending}
+                        >
+                          {c.isActive ? "Deactivate" : "Reactivate"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

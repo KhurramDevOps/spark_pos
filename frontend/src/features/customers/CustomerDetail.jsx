@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Modal, Badge, Button } from "../../components/ui";
+import { useAuth } from "../auth/useAuth";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
 import { useCustomer, useCustomerPayments, useCustomerCreditSales } from "./hooks";
@@ -57,6 +58,9 @@ function buildLedger(openingBalance, creditSales, payments) {
 }
 
 export default function CustomerDetail({ customerId, onClose }) {
+  // Edit is owner-only (PATCH is owner-guarded — slice 7); Record payment stays
+  // available to workers. Hide rather than 403.
+  const { isOwner } = useAuth();
   const [showPayment, setShowPayment] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
@@ -77,9 +81,11 @@ export default function CustomerDetail({ customerId, onClose }) {
       onClose={onClose}
       footer={
         <>
-          <Button variant="secondary" onClick={() => setShowEdit(true)} disabled={!customer}>
-            Edit
-          </Button>
+          {isOwner && (
+            <Button variant="secondary" onClick={() => setShowEdit(true)} disabled={!customer}>
+              Edit
+            </Button>
+          )}
           <Button onClick={() => setShowPayment(true)} disabled={!customer}>
             Record payment
           </Button>

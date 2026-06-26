@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button, TextInput, Select, Badge, ErrorText } from "../components/ui";
+import { useAuth } from "../features/auth/useAuth";
 import { formatPaisa, decimalText } from "../lib/format";
 import { useItems, useCategories, useDeactivateItem, useReactivateItem } from "../features/inventory/hooks";
 import ItemForm from "../features/inventory/ItemForm";
@@ -18,6 +19,10 @@ function isLowStock(item) {
 }
 
 export default function InventoryPage() {
+  // Inventory is read-only for workers (server 403s the writes regardless — slice
+  // 7). Gate the same owner-only controls here so a worker isn't shown buttons
+  // that only punish them with a 403.
+  const { isOwner } = useAuth();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -57,6 +62,7 @@ export default function InventoryPage() {
   const items = data?.items ?? [];
   const pages = data?.pages ?? 1;
   const total = data?.total ?? 0;
+  const colCount = isOwner ? 7 : 6; // the Actions column is owner-only
 
   async function toggleActive(item) {
     setRowError("");
@@ -77,20 +83,22 @@ export default function InventoryPage() {
           <h1 className="text-xl font-semibold text-fg">Inventory</h1>
           <span className="text-sm text-fg-subtle">{total} item{total === 1 ? "" : "s"}</span>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setShowCategories(true)}>
-            Categories
-          </Button>
-          <Button variant="secondary" onClick={() => setShowImport(true)}>
-            Import CSV
-          </Button>
-          <Button onClick={() => setFormItem(null)} disabled={categories.filter((c) => c.isActive).length === 0}>
-            + Add item
-          </Button>
-        </div>
+        {isOwner && (
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setShowCategories(true)}>
+              Categories
+            </Button>
+            <Button variant="secondary" onClick={() => setShowImport(true)}>
+              Import CSV
+            </Button>
+            <Button onClick={() => setFormItem(null)} disabled={categories.filter((c) => c.isActive).length === 0}>
+              + Add item
+            </Button>
+          </div>
+        )}
       </header>
 
-      {categories.filter((c) => c.isActive).length === 0 && (
+      {isOwner && categories.filter((c) => c.isActive).length === 0 && (
         <div className="mb-4 rounded-md bg-amber-50 dark:bg-amber-950/50 px-3 py-2 text-sm text-amber-800 dark:text-amber-300">
           Create a category first (Categories button) before adding items.
         </div>
@@ -147,18 +155,18 @@ export default function InventoryPage() {
               <th className="px-4 py-2 font-medium text-right">Stock</th>
               <th className="px-4 py-2 font-medium text-right">Avg cost</th>
               <th className="px-4 py-2 font-medium text-right">Retail</th>
-              <th className="px-4 py-2 font-medium text-right">Actions</th>
+              {isOwner && <th className="px-4 py-2 font-medium text-right">Actions</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {isLoading && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">Loading…</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-8 text-center text-fg-subtle">Loading…</td></tr>
             )}
             {isError && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-red-600 dark:text-red-400">{error.message}</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-8 text-center text-red-600 dark:text-red-400">{error.message}</td></tr>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <tr><td colSpan={7} className="px-4 py-8 text-center text-fg-subtle">No items found.</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-8 text-center text-fg-subtle">No items found.</td></tr>
             )}
             {items.map((item) => {
               const qty = Number(decimalText(item.stockQty));
@@ -188,16 +196,18 @@ export default function InventoryPage() {
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums text-fg-muted">{formatPaisa(decimalText(item.avgCost))}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-fg">{formatPaisa(item.retailPrice)}</td>
-                <td className="whitespace-nowrap px-4 py-2.5 align-top">
-                  <div className="flex justify-end gap-1">
-                    <Button variant="ghost" onClick={() => setAdjustItem(item)}>Adjust</Button>
-                    <Button variant="ghost" onClick={() => setFormItem(item)}>Edit</Button>
-                    <Button variant="ghost" title="Owner-only: replay avg cost from history" onClick={() => setRecalcItem(item)}>Recalc</Button>
-                    <Button variant="ghost" onClick={() => toggleActive(item)}>
-                      {item.isActive ? "Deactivate" : "Reactivate"}
-                    </Button>
-                  </div>
-                </td>
+                {isOwner && (
+                  <td className="whitespace-nowrap px-4 py-2.5 align-top">
+                    <div className="flex justify-end gap-1">
+                      <Button variant="ghost" onClick={() => setAdjustItem(item)}>Adjust</Button>
+                      <Button variant="ghost" onClick={() => setFormItem(item)}>Edit</Button>
+                      <Button variant="ghost" title="Owner-only: replay avg cost from history" onClick={() => setRecalcItem(item)}>Recalc</Button>
+                      <Button variant="ghost" onClick={() => toggleActive(item)}>
+                        {item.isActive ? "Deactivate" : "Reactivate"}
+                      </Button>
+                    </div>
+                  </td>
+                )}
               </tr>
               );
             })}
