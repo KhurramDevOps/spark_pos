@@ -12,16 +12,26 @@ export function notFound(req, res, next) {
  */
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, next) {
-  const status =
+  // A *deliberate* error carries an intentional status: set on the error by
+  // httpError() (err.status / err.statusCode), or on the response before throwing
+  // (res.status(...)). A genuinely unexpected error — a raw Mongo/driver throw, a
+  // programmer error — has none of these, so the status falls back to 500.
+  const deliberateStatus =
     err.status ||
     err.statusCode ||
-    (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
+    (res.statusCode && res.statusCode !== 200 ? res.statusCode : null);
+  const status = deliberateStatus || 500;
+
   console.error(`[error] ${req.method} ${req.originalUrl}:`, err);
-  // Intended errors (httpError → 4xx) carry user-facing messages and pass through.
-  // Genuine 500s may carry raw internal detail (driver/runtime messages), so in
-  // production they're masked to a generic message; dev keeps the real one. The
-  // full error is logged server-side above regardless.
+
+  // Deliberate errors carry user-facing messages and pass through with their real
+  // message — whatever the status. A 503 "Setup required." (and any other
+  // intentional 4xx/5xx httpError) MUST reach the client to drive the bootstrap
+  // flow. Only genuinely unexpected errors (no deliberate status) may leak raw
+  // internal detail, so in production those alone are masked. The full real error
+  // is logged server-side above in both cases.
   const isProd = process.env.NODE_ENV === "production";
-  const message = status >= 500 && isProd ? "Internal Server Error" : err.message || "Internal Server Error";
+  const masked = !deliberateStatus && isProd;
+  const message = masked ? "Internal Server Error" : err.message || "Internal Server Error";
   res.status(status).json({ error: message });
 }

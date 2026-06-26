@@ -2,9 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { errorHandler } from "../src/middleware/errorHandler.js";
+import { setupGate } from "../src/middleware/setupGate.js";
+import { hasUsers, setHasUsers } from "../src/lib/setupState.js";
 
-// In production, genuine 500s (unexpected/internal errors) must not leak their raw
-// message to the client — only the intended 4xx (httpError) messages pass through.
+// Production masking is scoped to *genuinely unexpected* errors (raw Mongo/driver
+// throws, programmer errors — no deliberate status). Errors raised deliberately
+// (httpError → err.status, or res.status(...) before throwing) keep their real
+// user-facing message, whatever the status — a 4xx OR an intentional 5xx like the
+// 503 "Setup required." that drives bootstrap. The full error is logged regardless.
 
 function mockRes() {
   return {
@@ -26,16 +31,17 @@ function withEnv(env, fn) {
   }
 }
 
-test("prod: a genuine 500 is masked to a generic message", () => {
+test("prod: a genuinely unhandled error (no deliberate status) is masked to a generic message", () => {
   withEnv("production", () => {
     const res = mockRes();
+    // Raw throw: no err.status, res.statusCode still 200 → status falls back to 500.
     errorHandler(new Error("ECONNREFUSED mongodb://secret-host internal detail"), req, res, () => {});
     assert.equal(res._status, 500);
     assert.equal(res._json.error, "Internal Server Error");
   });
 });
 
-test("prod: a 4xx (httpError) keeps its real message unchanged", () => {
+test("prod: a 4xx httpError (wrong password) keeps its real message unchanged", () => {
   withEnv("production", () => {
     const res = mockRes();
     const err = new Error("current password is incorrect");
@@ -43,6 +49,61 @@ test("prod: a 4xx (httpError) keeps its real message unchanged", () => {
     errorHandler(err, req, res, () => {});
     assert.equal(res._status, 400);
     assert.equal(res._json.error, "current password is incorrect");
+  });
+});
+
+test("prod: a deliberate 503 httpError keeps its real message (the bug — was masked to 500-generic)", () => {
+  withEnv("production", () => {
+    const res = mockRes();
+    const err = new Error("Setup required.");
+    err.status = 503; // intentional 5xx — must NOT be masked
+    errorHandler(err, req, res, () => {});
+    assert.equal(res._status, 503);
+    assert.equal(res._json.error, "Setup required.");
+  });
+});
+
+test("prod: any other deliberate 5xx httpError also keeps its real message", () => {
+  withEnv("production", () => {
+    const res = mockRes();
+    const err = new Error("upstream payment gateway timeout");
+    err.status = 502;
+    errorHandler(err, req, res, () => {});
+    assert.equal(res._status, 502);
+    assert.equal(res._json.error, "upstream payment gateway timeout");
+  });
+});
+
+test("prod: a status set on the response (validation 400, plain Error) is deliberate and kept", () => {
+  withEnv("production", () => {
+    const res = mockRes();
+    res.status(400); // validate.js sets this before throwing a plain Error (no err.status)
+    errorHandler(new Error("name: Required"), { method: "POST", originalUrl: "/api/items" }, res, () => {});
+    assert.equal(res._status, 400);
+    assert.equal(res._json.error, "name: Required");
+  });
+});
+
+test("prod REGRESSION: setupGate's 503 reaches the client unmasked through the REAL handlers", () => {
+  // The exact prod path that broke: setupGate raises the 503, errorHandler emits
+  // the body. setupState is in-memory, so no DB is needed to reproduce it.
+  const prev = hasUsers();
+  withEnv("production", () => {
+    setHasUsers(false); // empty DB → gate is closed
+    try {
+      let captured;
+      const gateReq = { method: "GET", path: "/api/sales", originalUrl: "/api/sales" };
+      setupGate(gateReq, mockRes(), (e) => { captured = e; });
+      assert.ok(captured, "setupGate raised an error");
+      assert.equal(captured.status, 503);
+
+      const res = mockRes();
+      errorHandler(captured, { method: "GET", originalUrl: "/api/sales" }, res, () => {});
+      assert.equal(res._status, 503);
+      assert.equal(res._json.error, "Setup required."); // NOT "Internal Server Error"
+    } finally {
+      setHasUsers(prev); // restore for other tests
+    }
   });
 });
 
