@@ -5,7 +5,7 @@ import { useAuth } from "./useAuth";
 import * as api from "./api";
 
 export default function ProfilePage() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   return (
     <div className="mx-auto max-w-md px-4 py-6">
@@ -21,9 +21,6 @@ export default function ProfilePage() {
         <div className="flex items-center justify-between">
           <span className="text-sm text-fg-muted">Role</span>
           <Badge tone={user?.role === "owner" ? "green" : "gray"}>{user?.role}</Badge>
-        </div>
-        <div className="border-t border-line pt-4">
-          <Button variant="danger" onClick={logout}>Log out</Button>
         </div>
       </div>
 
