@@ -1,12 +1,13 @@
 import { Router } from "express";
 import express from "express";
 import * as imports from "../controllers/importController.js";
+import { requireAuth } from "../middleware/requireAuth.js";
 import { requireOwner } from "../middleware/requireOwner.js";
 
 const router = Router();
 
 // Bulk import is owner-only (spec 002).
-router.use(requireOwner);
+router.use(requireAuth, requireOwner);
 
 // The upload is the raw CSV text (no multipart library — ADR-004). The body
 // parser limit is set ABOVE the 10 MB cap (§6) on purpose: the service enforces

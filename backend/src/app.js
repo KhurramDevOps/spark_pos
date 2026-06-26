@@ -14,7 +14,6 @@ import reportRoutes from "./routes/reportsRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import userRoutes from "./routes/userRoutes.js";
 import { storage } from "./lib/storage/index.js";
-import { currentUser } from "./middleware/currentUser.js";
 import { createSessionMiddleware } from "./middleware/session.js";
 import { setupGate } from "./middleware/setupGate.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
@@ -45,11 +44,6 @@ export function createApp() {
   // Owner-only user management (spec 007 slice 6). requireAuth + requireOwner
   // applied at the router level.
   app.use("/api/users", userRoutes);
-
-  // PLACEHOLDER auth for the not-yet-guarded legacy routes — attaches a dev
-  // userId until slice 7 replaces it with requireAuth per route (spec 007 §10
-  // step 7). The setup gate above already blocks these until bootstrap.
-  app.use(currentUser);
 
   app.use("/api", healthRoutes);
   app.use("/api/items", itemRoutes);

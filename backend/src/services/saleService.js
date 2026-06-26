@@ -213,9 +213,10 @@ export async function recordSale(input, { userId } = {}) {
  * Sale history, filterable by customer, date range, and payment type, newest first.
  * @param {object} opts - { customerId, from (Date), to (Date), paymentType, page, limit }
  */
-export async function listSales({ customerId, from, to, paymentType, page = 1, limit = 20 } = {}) {
+export async function listSales({ customerId, from, to, paymentType, createdBy, page = 1, limit = 20 } = {}) {
   const query = {};
   if (customerId) query.customerId = customerId;
+  if (createdBy) query.createdBy = createdBy;
   if (paymentType) query.paymentType = paymentType;
   if (from || to) {
     query.date = {};
@@ -258,10 +259,14 @@ export async function listSales({ customerId, from, to, paymentType, page = 1, l
 }
 
 /** A single sale with its lines' items and the customer populated. */
-export async function getSale(id) {
+export async function getSale(id, { restrictToUserId = null } = {}) {
   const sale = await Sale.findById(id)
     .populate("customerId", "name")
     .populate("lines.itemId", "name sku baseUnit");
   if (!sale) throw httpError("sale not found", 404);
+  // Workers may only view their own sales (§9.4).
+  if (restrictToUserId && String(sale.createdBy) !== String(restrictToUserId)) {
+    throw httpError("forbidden", 403);
+  }
   return sale;
 }

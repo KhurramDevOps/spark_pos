@@ -8,7 +8,9 @@
  */
 export const validate =
   (schema, source = "body") =>
-  (req, res, next) => {
+  // Named (not anonymous) so the enumerated route-guard test can see a validator
+  // in a route's middleware stack and assert it wasn't dropped (routeGuards.test.js).
+  function validate(req, res, next) {
     const result = schema.safeParse(req[source]);
     if (!result.success) {
       const message = result.error.issues

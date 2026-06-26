@@ -1,6 +1,8 @@
 import { Router } from "express";
 import * as suppliers from "../controllers/supplierController.js";
 import { validate } from "../middleware/validate.js";
+import { requireAuth } from "../middleware/requireAuth.js";
+import { requireOwner } from "../middleware/requireOwner.js";
 import {
   createSupplierSchema,
   updateSupplierSchema,
@@ -9,6 +11,9 @@ import {
 import { createSupplierReturnSchema } from "../../../shared/validation/supplierReturn.js";
 
 const router = Router();
+
+// Owner-only (spec 003) — uniform file, guarded at the router level.
+router.use(requireAuth, requireOwner);
 
 router.get("/", suppliers.list);
 router.post("/", validate(createSupplierSchema), suppliers.create);

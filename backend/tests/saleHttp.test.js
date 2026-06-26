@@ -4,6 +4,9 @@ import mongoose from "mongoose";
 
 import { createApp } from "../src/app.js";
 import { setHasUsers } from "../src/lib/setupState.js";
+import { createUser } from "../src/services/authService.js";
+
+let authCookie = "";
 import Item from "../src/models/Item.js";
 import Category from "../src/models/Category.js";
 import StockMovement from "../src/models/StockMovement.js";
@@ -18,7 +21,8 @@ const TEST_URI =
   "mongodb://127.0.0.1:27017/sparkpos_test_sale_http?replicaSet=rs0";
 
 let server, base;
-const api = (path, options) => fetch(`${base}${path}`, options);
+const api = (path, options = {}) =>
+  fetch(`${base}${path}`, { ...options, headers: { ...(options.headers || {}), ...(authCookie ? { Cookie: authCookie } : {}) } });
 const postJson = (path, body) =>
   api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -33,6 +37,12 @@ before(async () => {
   ]);
   await new Promise((r) => (server = createApp().listen(0, "127.0.0.1", r)));
   base = `http://127.0.0.1:${server.address().port}/api`;
+  // Slice 7: log in as owner AFTER the server/base exist; send the cookie on every request.
+  await createUser({ username: "owner", password: "password123", role: "owner" }).catch((e) => { if (e.status !== 409) throw e; });
+  {
+    const _login = await fetch(`${base}/auth/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: "owner", password: "password123" }) });
+    authCookie = _login.headers.getSetCookie().find((c) => c.startsWith("spark.sid="))?.split(";")[0] ?? "";
+  }
 });
 
 after(async () => {

@@ -36,6 +36,8 @@ export const list = wrap(async (req, res) => {
     from: from ? new Date(from) : undefined,
     to: to ? new Date(to) : undefined,
     paymentType: paymentType || undefined,
+    // Workers see ONLY their own sales (§9.4) — server-enforced, not UI-hidden.
+    createdBy: req.userRole === "worker" ? req.userId : undefined,
     page,
     limit,
   });
@@ -43,7 +45,8 @@ export const list = wrap(async (req, res) => {
 });
 
 export const getOne = wrap(async (req, res) => {
-  res.json(await getSale(req.params.id));
+  const restrictToUserId = req.userRole === "worker" ? req.userId : null;
+  res.json(await getSale(req.params.id, { restrictToUserId }));
 });
 
 export const void_ = wrap(async (req, res) => {
