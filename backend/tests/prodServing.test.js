@@ -35,6 +35,11 @@ let imageKey;
 
 before(async () => {
   await mongoose.connect(TEST_URI);
+  // Pre-create the sessions collection up front and await it, so connect-mongo's
+  // background collection/index setup isn't still pending when after() drops the
+  // DB (else its implicit createCollection can race the drop under parallel test
+  // load and fail the file with "database is in the process of being dropped").
+  await mongoose.connection.createCollection("sessions").catch(() => {});
   setHasUsers(true); // past the setup gate; /reports must reach the SPA fallback
 
   // Real image byte on disk under the local driver's base dir.

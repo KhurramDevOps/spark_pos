@@ -24,12 +24,21 @@ function isBootstrapPath(req) {
 /**
  * Empty-DB setup gate (spec 007 §6). One middleware mounted ahead of the route
  * table — no per-route changes.
+ *  - It guards the API only (paths under /api/). Frontend-serving routes (GET /,
+ *    built assets, SPA deep-link fallbacks) are NEVER intercepted — otherwise,
+ *    before an owner exists, the browser receives a 503 JSON body in place of
+ *    index.html and the React app (which would render BootstrapPage) never boots.
  *  - Public reads are always allowed.
- *  - While no user exists: only the bootstrap route passes; everything else 503.
+ *  - While no user exists: only the bootstrap route passes; every other /api route 503s.
  *  - Once an owner exists: the bootstrap route is closed (404); everything else
  *    falls through to normal auth.
  */
 export function setupGate(req, res, next) {
+  // Non-API requests (the SPA shell, assets, client routes) fall straight through
+  // to express.static / the SPA fallback. The gate's 503 belongs on API calls,
+  // never on the page load itself.
+  if (!req.path.startsWith("/api/")) return next();
+
   if (isExemptPublicRead(req)) return next();
 
   if (!hasUsers()) {

@@ -40,9 +40,11 @@ export function createApp() {
   // route that reads req.session. Requires Mongoose to be connected already.
   app.use(createSessionMiddleware());
 
-  // Empty-DB setup gate: 503 everywhere until the first owner is bootstrapped
+  // Empty-DB setup gate: 503 on /api routes until the first owner is bootstrapped
   // (except the two public reads + the bootstrap route itself); once an owner
-  // exists, the bootstrap route 404s. One middleware, ahead of the route table.
+  // exists, the bootstrap route 404s. Scoped to /api inside the middleware, so it
+  // NEVER intercepts the frontend shell / static / SPA-fallback served below —
+  // the page must load so the React app can call /api/auth/me and bootstrap.
   app.use(setupGate);
 
   // Auth endpoints (bootstrap / login / logout) — the only routes exempt from
