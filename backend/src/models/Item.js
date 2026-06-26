@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { uploadImageUrl } from "../lib/imageUrl.js";
 
 const { Schema } = mongoose;
 
@@ -32,6 +33,17 @@ const itemImageSchema = new Schema(
   },
   { _id: false }
 );
+
+// On serialization, resolve the driver-correct public URL for upload-kind images
+// (ADR-012). The frontend reads image.url and never knows which driver produced
+// it. url-kind images carry no `url` field — their ref is already an external URL.
+itemImageSchema.set("toJSON", {
+  transform(_doc, ret) {
+    const url = uploadImageUrl(ret);
+    if (url) ret.url = url;
+    return ret;
+  },
+});
 
 const itemSchema = new Schema(
   {

@@ -23,4 +23,10 @@ export default defineConfig({
       },
     },
   },
+  // Component tests run in jsdom (Vitest). setup wires jest-dom matchers.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+  },
 })

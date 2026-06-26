@@ -1,13 +1,16 @@
 import { useState, useCallback } from "react";
 
-// Build the <img src> for an item image (spec 006b). Uploads are served from the
-// local static route with a ?v=updatedAt cache-bust (so replacing an image shows
-// immediately); URL-kind images render their external ref directly.
+// Build the <img src> for an item image (spec 006b). Upload-kind images use the
+// driver-resolved URL the backend provides in image.url (ADR-012) — local static
+// route or R2 public URL, the frontend doesn't know or care which — plus a
+// ?v=updatedAt cache-bust so replacing an image shows immediately. URL-kind images
+// render their external ref directly, untouched.
 function imageSrc(image) {
   if (!image || !image.ref) return null;
   if (image.kind === "url") return image.ref;
+  if (!image.url) return null; // upload with no resolved URL → placeholder
   const v = image.updatedAt ? `?v=${new Date(image.updatedAt).getTime()}` : "";
-  return `/api/static/items/${image.ref}${v}`;
+  return `${image.url}${v}`;
 }
 
 function Placeholder({ size, className }) {
@@ -32,7 +35,7 @@ function Placeholder({ size, className }) {
  * when absent, and — when `hover` — a larger floating preview on mouseover.
  * Thumbnails lazy-load. A broken/rotted URL falls back to the placeholder.
  *
- * @param {{ kind:'upload'|'url', ref:string, updatedAt?:string }|null} image
+ * @param {{ kind:'upload'|'url', ref:string, url?:string, updatedAt?:string }|null} image
  * @param {number} size       thumbnail edge in px (default 48)
  * @param {boolean} hover      show the enlarge-on-hover preview (default false)
  * @param {number} previewSize hover-preview edge in px (default 280)

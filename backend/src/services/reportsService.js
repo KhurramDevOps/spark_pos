@@ -7,6 +7,7 @@ import Item from "../models/Item.js";
 import { resolveWindow, eachKarachiDay, karachiYMDLabel } from "../lib/businessDay.js";
 import { aggregateCashFlows } from "./dailyCloseService.js";
 import { add, subtract, multiply, divide, decimalToString, isZero, isNegative, HALF_UP } from "../lib/decimal.js";
+import { serializeImage } from "../lib/imageUrl.js";
 
 const inRange = (start, end) => ({ createdAt: { $gte: start, $lte: end } });
 
@@ -134,7 +135,7 @@ export async function aggregateItemPerformance({ start, end }) {
       itemId: id,
       name: m?.name ?? "(deleted item)",
       sku: m?.sku ?? "",
-      image: m?.image ?? null, // thumbnail in Reports (spec 006b)
+      image: serializeImage(m?.image ?? null), // thumbnail in Reports (spec 006b); url resolved (ADR-012)
       qtySold: v.qty,
       revenue: v.revenue,
       grossProfit: v.profit,
