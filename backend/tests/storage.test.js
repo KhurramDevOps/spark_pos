@@ -48,12 +48,8 @@ test("pathFor rejects malformed / traversal keys", () => {
   assert.throws(() => driver.pathFor(""), /invalid storage key/);
 });
 
-test("S3Driver stub throws 'not implemented' on every method", async () => {
-  const s3 = new S3Driver();
-  await assert.rejects(() => s3.put(Buffer.from("x"), "i"), /not implemented/);
-  await assert.rejects(() => s3.delete("k"), /not implemented/);
-  assert.throws(() => s3.urlFor("k"), /not implemented/);
-});
+// S3Driver behavior is covered in tests/s3Driver.test.js (a fake S3 client) — it
+// is a real driver now, no longer a "not implemented" stub.
 
 test("createDriver selects by name and rejects unknown", () => {
   assert.ok(createDriver("local") instanceof LocalDiskDriver);

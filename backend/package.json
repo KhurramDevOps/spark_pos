@@ -11,6 +11,7 @@
     "rs:init": "node src/scripts/initReplicaSet.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1075.0",
     "bcrypt": "^6.0.0",
     "connect-mongo": "^6.0.0",
     "express": "^5.2.1",
