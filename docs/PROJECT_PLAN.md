@@ -301,6 +301,17 @@ reproduced through the UI — a cost-less "opening stock" adjustment of 15 then 
 30, NOT 45** (the legacy adjustment deleted, not stacked: the headline regression), idempotent
 on a second run. The last correctness-foundation fix before AI work begins.
 
+**Phase 6 polish — Quick Sale items** — ✅ **SHIPPED** (spec 008)
+Sell tiny uncatalogued goods (screws, connectors) by typing a name + price at checkout, with no
+Item, no stock movement, and **no cost basis** (ADR-016). A `Sale.lines[]` `kind` discriminator
+("item" | "quick") keeps quick lines on the same sale as catalogued ones; a quick line stores
+name + qty + unitPrice + lineTotal and deliberately has **no `costAtTime`** (absent, not zero — the
+006c lesson made structural). Revenue flows into `Sale.total` → Daily Close "Expected cash" and
+Reports revenue, but every COGS gross-profit loop skips quick lines, so profit is never overstated;
+the quick-sale revenue is surfaced as its own figure (Daily Close line, Reports caption, a single
+"Quick sales (uncatalogued)" Item-Performance row with profit shown "—"). Void reverses cash/khata
+via the total and restores stock for item lines only. Verified end-to-end in the browser.
+
 **Phase 7 — AI layer**
 Q&A chatbot over the data (read-only first, safest), then conversational sales/stock with a
 confirm step. Anthropic Messages API + tool use.

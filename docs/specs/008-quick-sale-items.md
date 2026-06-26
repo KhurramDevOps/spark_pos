@@ -1,10 +1,18 @@
 # Spec: 008 — Quick Sale items (uncatalogued, cost-unknown checkout lines)
 
-- **Status:** ✅ reviewed / approved (2026-06-27). Four open questions resolved: Q-PERM = workers
-  may create quick sales, no toggle (v1); Q-RET = void-only reversal (v1), defer partial quick
-  returns; Q-REV-SHAPE = approved as proposed with the Daily-Close figure distinction stated in §9;
-  Q-PRICE0 / Q-NAME = yes / yes. ADR-016 committed to DECISIONS.md. Implementation tests-first, in
-  slices (§11), pausing on green per workflow.
+- **Status:** ✅ SHIPPED (2026-06-27). All four build-order slices done; backend 334 tests green,
+  frontend 9 green, build clean; verified end-to-end in the browser against the live dev DB (a
+  mixed item + quick-line cash sale: Expected cash moved by the full total, Gross profit / Net by
+  the item line only, the separate quick-sale revenue line + the "—" Item Performance row appeared,
+  void restored item stock with no quick-line side effect — then the test sale voided). ADR-016
+  written; CLAUDE.md + PROJECT_PLAN updated. Four open questions resolved at review: Q-PERM =
+  workers may create quick sales, no toggle (v1); Q-RET = void-only reversal (v1), defer partial
+  quick returns; Q-REV-SHAPE = approved with the Daily-Close figure distinction in §9; Q-PRICE0 /
+  Q-NAME = yes / yes.
+  - **Commits:** `1a90497` (spec + ADR-016) · `d6faa8e` slice 1 (polymorphic Sale line + shared
+    validation) · `9ad3aa3` slices 2–3 (post quick lines with no stock; exclude from COGS profit) ·
+    `f994361` slice 4 (POS quick entry, three-figure Daily Close, Item-Performance synthetic row,
+    void stock-filter, history label).
 - **Phase:** Phase 6 polish tier (a correctness-sensitive addition, same discipline as 004b /
   006b / 006c). Must land cleanly before Phase 7 AI, because the AI reasons over the same
   profit numbers this spec must not corrupt.
