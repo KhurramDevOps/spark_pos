@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import User from "../models/User.js";
-import { hashPassword, verifyPassword, comparePassword } from "../services/authService.js";
+import { hashPassword, verifyPassword, verifyCurrentPassword } from "../services/authService.js";
 import { migrateLegacyCreatedBy } from "../services/migrateCreatedBy.js";
 import { setHasUsers } from "../lib/setupState.js";
 import { SESSION_COOKIE_NAME } from "../middleware/session.js";
@@ -99,7 +99,14 @@ export async function changePassword(req, res, next) {
     const user = await User.findById(req.userId);
     if (!user) return next(httpError("authentication required", 401));
 
-    if (!(await comparePassword(currentPassword, user.passwordHash))) {
+    // Same lockout as login (shared counter) so a held session can't brute-force
+    // the current password. 429 (not 401) so the client treats it as rate-limiting,
+    // not a dead session to redirect away from.
+    const check = await verifyCurrentPassword(user, currentPassword);
+    if (!check.ok) {
+      if (check.reason === "locked") {
+        return next(httpError("Too many failed attempts. Try again later.", 429));
+      }
       return next(httpError("current password is incorrect", 400));
     }
 

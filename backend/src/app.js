@@ -28,6 +28,12 @@ import { notFound, errorHandler } from "./middleware/errorHandler.js";
 export function createApp() {
   const app = express();
 
+  // Render terminates TLS at a proxy and forwards over one hop. Trusting it makes
+  // req.ip / req.secure / req.protocol reflect the real client (correctness for
+  // any future IP-based logic). Secure-cookie detection is handled separately by
+  // express-session's proxy:true, so this isn't what gates the cookie — ADR-014.
+  app.set("trust proxy", 1);
+
   app.use(express.json());
 
   // Server-side sessions (spec 007 / ADR-014). Must precede the gate and any

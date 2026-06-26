@@ -104,6 +104,32 @@ export async function verifyPassword(rawUsername, rawPassword) {
 }
 
 /**
+ * Verify a password for an ALREADY-loaded, authenticated user, applying the SAME
+ * lockout as login (the shared counter on the user doc). Used by change-password
+ * so a valid session can't brute-force the current password unthrottled (§8).
+ *   { ok: true }                     — correct; lockout fields cleared in-memory
+ *                                       (caller persists, mirroring login's reset)
+ *   { ok: false, reason: "locked" }  — too many recent failures; not even checked
+ *   { ok: false, reason: "invalid" } — wrong password; failure registered + saved
+ */
+export async function verifyCurrentPassword(user, rawPassword, now = Date.now()) {
+  if (user.lockedUntil && user.lockedUntil.getTime() > now) {
+    return { ok: false, reason: "locked" };
+  }
+  const match = await comparePassword(rawPassword, user.passwordHash);
+  if (!match) {
+    await registerFailure(user, now);
+    return { ok: false, reason: "invalid" };
+  }
+  // Correct: clear lockout state in-memory; the caller saves alongside the new
+  // password hash (so a successful change resets the counter, same as a login).
+  user.failedAttempts = 0;
+  user.failedWindowStartedAt = null;
+  user.lockedUntil = null;
+  return { ok: true };
+}
+
+/**
  * Record a failed attempt against the rolling window. Opens a fresh window if
  * none is active or the current one has aged out; locks once MAX_FAILED is hit.
  */

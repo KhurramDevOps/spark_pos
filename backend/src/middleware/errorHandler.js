@@ -17,7 +17,11 @@ export function errorHandler(err, req, res, next) {
     err.statusCode ||
     (res.statusCode && res.statusCode !== 200 ? res.statusCode : 500);
   console.error(`[error] ${req.method} ${req.originalUrl}:`, err);
-  res.status(status).json({
-    error: err.message || "Internal Server Error",
-  });
+  // Intended errors (httpError → 4xx) carry user-facing messages and pass through.
+  // Genuine 500s may carry raw internal detail (driver/runtime messages), so in
+  // production they're masked to a generic message; dev keeps the real one. The
+  // full error is logged server-side above regardless.
+  const isProd = process.env.NODE_ENV === "production";
+  const message = status >= 500 && isProd ? "Internal Server Error" : err.message || "Internal Server Error";
+  res.status(status).json({ error: message });
 }
