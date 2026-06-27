@@ -30,8 +30,8 @@ export function Field({ label, error, children, hint }) {
 const inputClass =
   "w-full rounded-md border border-line px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-muted";
 
-export function TextInput(props) {
-  return <input className={inputClass} {...props} />;
+export function TextInput({ className = "", ...props }) {
+  return <input className={`${inputClass} ${className}`} {...props} />;
 }
 
 /**

@@ -67,13 +67,23 @@ async function customerKhataTotals() {
   };
 }
 
+/** Escape user input before using it in a RegExp (matches itemService). */
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
- * List customers, optionally filtered by active state; sorted by name. Returns the
- * list PLUS whole-book khata totals in one round-trip (header tiles read `totals`).
+ * List customers, optionally filtered by active state and a case-insensitive name
+ * substring (`search`); sorted by name. Returns the list PLUS whole-book khata
+ * totals in one round-trip (header tiles read `totals`). The `totals` are GLOBAL —
+ * a search narrows the LIST only, never the headline figures.
  */
-export async function listCustomers({ active } = {}) {
+export async function listCustomers({ active, search } = {}) {
   const query = {};
   if (typeof active === "boolean") query.isActive = active;
+  if (search && search.trim()) {
+    query.name = new RegExp(escapeRegex(search.trim()), "i");
+  }
   const customers = await Customer.find(query)
     .sort({ name: 1 })
     .collation({ locale: "en", strength: 2 });

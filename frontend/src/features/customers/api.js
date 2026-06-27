@@ -2,8 +2,13 @@ import { apiClient } from "../../lib/apiClient";
 
 // ---- Customers (mirror of the supplier api) -------------------------------
 
-export const fetchCustomers = (active) =>
-  apiClient.get(`/customers${active ? `?active=${active}` : ""}`);
+export const fetchCustomers = (active, search) => {
+  const params = new URLSearchParams();
+  if (active) params.set("active", active);
+  if (search && search.trim()) params.set("search", search.trim());
+  const qs = params.toString();
+  return apiClient.get(`/customers${qs ? `?${qs}` : ""}`);
+};
 export const getCustomer = (id) => apiClient.get(`/customers/${id}`);
 export const createCustomer = (body) => apiClient.post("/customers", body);
 export const updateCustomer = (id, body) => apiClient.patch(`/customers/${id}`, body);

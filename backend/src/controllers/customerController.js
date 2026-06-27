@@ -28,7 +28,7 @@ export const list = wrap(async (req, res) => {
   else if (active === "false") activeFilter = false;
   else if (active === "all") activeFilter = undefined;
   else activeFilter = true;
-  res.json(await listCustomers({ active: activeFilter }));
+  res.json(await listCustomers({ active: activeFilter, search: req.query.search }));
 });
 
 export const getOne = wrap(async (req, res) => {

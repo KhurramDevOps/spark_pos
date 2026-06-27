@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as api from "./api";
 
-export function useCustomers(active) {
+export function useCustomers(active, search = "") {
   return useQuery({
-    queryKey: ["customers", active ?? "all"],
-    queryFn: () => api.fetchCustomers(active),
+    queryKey: ["customers", active ?? "all", search.trim()],
+    queryFn: () => api.fetchCustomers(active, search),
+    placeholderData: (prev) => prev, // keep the list visible while a new search fetches
   });
 }
 

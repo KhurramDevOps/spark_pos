@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Badge, Button } from "../../components/ui";
+import { useEffect, useState } from "react";
+import { Badge, Button, TextInput } from "../../components/ui";
 import { useAuth } from "../auth/useAuth";
 import { decimalText, formatPaisa } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
@@ -16,7 +16,16 @@ export default function CustomersList() {
   const [showNew, setShowNew] = useState(false);
   const [openId, setOpenId] = useState(null);
 
-  const { data, isLoading, isError, error } = useCustomers(showInactive ? "all" : "true");
+  // Debounced name search (mirrors InventoryPage). `searchInput` is the live box;
+  // `search` is what we actually query, updated 300ms after typing stops.
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setSearch(searchInput.trim()), 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
+
+  const { data, isLoading, isError, error } = useCustomers(showInactive ? "all" : "true", search);
   const customers = data?.customers ?? [];
   const totals = data?.totals;
   const setActive = useSetCustomerActive();
@@ -33,16 +42,33 @@ export default function CustomersList() {
         />
       )}
 
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 text-sm text-fg-muted">
-          <input
-            type="checkbox"
-            checked={showInactive}
-            onChange={(e) => setShowInactive(e.target.checked)}
-            className="rounded border-line"
-          />
-          Show inactive
-        </label>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative">
+            <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-fg-subtle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+              </svg>
+            </span>
+            <TextInput
+              className="w-56 pl-9"
+              placeholder="Search by name…"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              aria-label="Search customers by name"
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-fg-muted">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+              className="rounded border-line"
+            />
+            Show inactive
+          </label>
+        </div>
         <Button onClick={() => setShowNew(true)}>+ New customer</Button>
       </div>
 
@@ -68,7 +94,9 @@ export default function CustomersList() {
             ) : customers.length === 0 ? (
               <tr>
                 <td colSpan={4} className="px-4 py-10 text-center text-sm text-fg-subtle">
-                  No customers yet. Add one with “New customer”.
+                  {search
+                    ? `No customers match “${search}”.`
+                    : "No customers yet. Add one with “New customer”."}
                 </td>
               </tr>
             ) : (
