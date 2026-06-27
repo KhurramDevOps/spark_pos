@@ -54,6 +54,7 @@ const EXPECTED = {
     router: itemRoutes,
     routes: {
       "GET /": AUTH,
+      "GET /search": AUTH,
       "GET /negative-stock": OWNER,
       "POST /": V(OWNER),
       "GET /:id": AUTH,

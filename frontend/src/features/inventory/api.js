@@ -14,6 +14,14 @@ export function fetchItems({ search, categoryId, active, noImage, page, limit })
   return apiClient.get(`/items${qs ? `?${qs}` : ""}`);
 }
 
+// Relevance-ranked, category-aware POS picker search. Returns { items } (top
+// matches, no pagination) — distinct from fetchItems (the alphabetical grid).
+export function searchItems(q, limit = 8) {
+  const params = new URLSearchParams({ q });
+  if (limit) params.set("limit", String(limit));
+  return apiClient.get(`/items/search?${params.toString()}`);
+}
+
 export const createItem = (body) => apiClient.post("/items", body);
 export const updateItem = (id, body) => apiClient.patch(`/items/${id}`, body);
 

@@ -19,7 +19,8 @@ const handleUpload = (req, res, next) =>
   });
 
 router.get("/", requireAuth, items.list);
-// Literal path before "/:id" so it isn't captured as an id.
+// Literal paths before "/:id" so they aren't captured as an id.
+router.get("/search", requireAuth, items.search); // POS picker: ranked, category-aware
 router.get("/negative-stock", requireAuth, requireOwner, items.negativeStock);
 router.post("/", requireAuth, requireOwner, validate(createItemSchema), items.create);
 router.get("/:id", requireAuth, items.getOne);

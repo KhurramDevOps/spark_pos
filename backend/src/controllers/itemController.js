@@ -4,6 +4,7 @@ import {
   setItemActive,
   adjustStock,
   listItems,
+  searchItems,
   listNegativeStockItems,
   getItemOpening,
 } from "../services/itemService.js";
@@ -60,6 +61,12 @@ export const list = wrap(async (req, res) => {
     limit,
   });
   res.json(result);
+});
+
+// Relevance-ranked POS picker search (category-aware). `q` is the query, `limit`
+// optional. Returns { items } only — no pagination (the picker wants top matches).
+export const search = wrap(async (req, res) => {
+  res.json(await searchItems({ query: req.query.q, limit: req.query.limit }));
 });
 
 export const getOne = wrap(async (req, res) => {

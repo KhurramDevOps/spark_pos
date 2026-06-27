@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchItems } from "../inventory/api";
+import { searchItems } from "../inventory/api";
 import { TextInput } from "../../components/ui";
 import ItemImage from "../../components/ItemImage";
 import { decimalText } from "../../lib/format";
@@ -14,8 +14,8 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
   const [open, setOpen] = useState(false);
 
   const { data } = useQuery({
-    queryKey: ["item-search", q],
-    queryFn: () => fetchItems({ search: q, active: "true", limit: 8 }),
+    queryKey: ["item-search", q.trim()],
+    queryFn: () => searchItems(q.trim(), 8),
     enabled: open && q.trim().length > 0,
   });
   const results = data?.items ?? [];

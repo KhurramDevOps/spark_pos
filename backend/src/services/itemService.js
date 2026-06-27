@@ -5,6 +5,7 @@ import StockMovement from "../models/StockMovement.js";
 import { generateSku } from "./skuService.js";
 import { deleteStoredImageIfUpload } from "./imageService.js";
 import { parseDecimal, subtract, isZero, isNegative, decimalToString, toDecimal128 } from "../lib/decimal.js";
+import { rankItemMatches } from "../lib/itemSearch.js";
 
 /**
  * Run `fn(session)` inside a single MongoDB transaction. Every write that
@@ -370,6 +371,25 @@ export async function listItems({ search, categoryId, active, noImage, page = 1,
     limit: safeLimit,
     pages: Math.ceil(total / safeLimit),
   };
+}
+
+/**
+ * Relevance-ranked, category-aware item search for the POS picker. Unlike the
+ * Inventory grid (`listItems`, alphabetical + paginated), this returns the few
+ * MOST RELEVANT active items for a short, loose query — matching on name, sku, AND
+ * category name, with name relevance ranked above category above sku (see
+ * lib/itemSearch.js). At this shop's volume (~200 items) loading the active set and
+ * ranking in memory is trivially fast and keeps the ranking honest (ADR-011 spirit:
+ * compute on read, no denormalized search index to drift).
+ * @param {object} opts - { query (string), limit (default 8, max 25) }
+ */
+export async function searchItems({ query, limit = 8 } = {}) {
+  if (!query || !query.trim()) return { items: [] };
+  const safeLimit = Math.min(Math.max(Number(limit) || 8, 1), 25);
+  const active = await Item.find({ isActive: true })
+    .collation({ locale: "en", strength: 2 })
+    .populate("categoryId", "name skuPrefix");
+  return { items: rankItemMatches(active, query, safeLimit) };
 }
 
 /**
