@@ -15,6 +15,42 @@ Format:
 
 ---
 
+## ADR-017 — Per-sale facts that can change on the item are SNAPSHOTTED onto the line, never re-derived
+- Date: 2026-06-28
+- Status: accepted
+- Context: Spec 009 records warranty terms on an `Item` (e.g. "motor: 10 years, fan kit:
+  1 year") and must let the owner check, when a customer brings a faulty unit back,
+  whether *that item, sold on that date* is still under warranty. Item warranty terms
+  are **mutable** (the owner edits them over time). If a claim check re-read the live
+  item's terms, a past sale's warranty would silently change whenever the item was
+  edited — wrong, and the same class of bug ADR-007 fixed for cost.
+- Decision:
+  - **Snapshot the warranty terms onto each item-kind `Sale.lines[]` entry at sale
+    time**, copied from the item **inside the existing `recordSale` transaction**, at
+    the exact point `costAtTime` is snapshotted. The line stores `warranties: [{ label,
+    durationValue, durationUnit }]`; absent on quick lines (ADR-016), `[]`/absent on
+    item lines that had no terms. Immutable thereafter (ADR-007).
+  - **Validity is DERIVED on read** (ADR-011), never stored: `expiry = Sale.date +
+    duration` (calendar add, end-of-month/leap-day clamp), compared at day granularity
+    in Asia/Karachi (ADR-010). No stored expiry date, no claim/RMA log in v1.
+  - **The warranty clock is `Sale.date`** (the receipt date the customer sees), NOT
+    `createdAt` — correct for back-dated/imported/re-entered sales, consistent with the
+    project's existing date-vs-createdAt stance.
+  - **GENERAL RULE (this is why it's an ADR, not just a spec note):** any *new* per-sale
+    fact that (a) lives on a mutable parent (Item/Customer/…) and (b) must reflect its
+    value **at sale time** gets **snapshotted onto the immutable line**, not re-derived
+    by join. Snapshot the physical fact; derive everything computable from it on read.
+    This generalizes the `costAtTime` precedent (ADR-007) so future specs don't
+    re-litigate it.
+  - **No new collection, no migration.** Pre-feature items default to `warranties: []`;
+    pre-feature sale lines have no `warranties` → "no warranty on record". Backward
+    compatible, mirroring the quick-line/`costAtTime` absence-not-zero approach.
+- Consequences: warranty answers are correct and frozen per sale; zero drift; the only
+  new write rides inside the existing sale transaction (no new money/stock/COGS effect).
+  The cost is one snapshotted sub-array per item line. A claim/RMA log, serial-number
+  tracking, or a standalone warranty-search screen are deliberately deferred — each a
+  new spec, not a tweak here.
+
 ## ADR-016 — "Quick Sale" lines: revenue without a cost basis, structurally separated from COGS profit
 - Date: 2026-06-27
 - Status: accepted

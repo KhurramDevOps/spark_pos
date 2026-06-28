@@ -16,6 +16,18 @@ const skuField = z
   .min(1)
   .regex(/^[A-Za-z0-9-]+$/, "SKU may contain only letters, numbers, and hyphens");
 
+// Warranty terms (spec 009). One item may carry MANY named terms with different
+// durations (e.g. motor: 10 years, fan kit: 1 year) — each is independent. `label`
+// is the component name, optional (blank renders as "Warranty"). Shared so the Item
+// form and the backend validate the same shape.
+export const WARRANTY_UNITS = ["years", "months", "days"];
+export const warrantyTermSchema = z.object({
+  label: z.string().trim().max(60).optional().default(""),
+  durationValue: z.number().int().min(1, "duration must be at least 1").max(100, "duration is at most 100"),
+  durationUnit: z.enum(WARRANTY_UNITS),
+});
+const warranties = z.array(warrantyTermSchema).max(10, "at most 10 warranty terms");
+
 // Prices are integer paisa (rupee<->paisa conversion happens at the UI boundary).
 const retailPrice = z.number().int().min(1, "retail price (paisa) must be greater than 0");
 const wholesalePrice = z.number().int().min(0, "wholesale price (paisa) cannot be negative");
@@ -29,6 +41,7 @@ export const createItemSchema = z.object({
   wholesalePrice: wholesalePrice.optional(),
   reorderLevel: reorderLevel.default(0),
   notes: z.string().trim().max(2000).optional(),
+  warranties: warranties.optional(),
   // Optional manual override; auto-generated when omitted.
   sku: skuField.optional(),
   // Opening stock; defaults to "0" (then no opening movement is written).
@@ -60,6 +73,7 @@ export const updateItemSchema = z
     wholesalePrice: wholesalePrice.nullable(),
     reorderLevel,
     notes: z.string().trim().max(2000).nullable(),
+    warranties,
     sku: skuField,
     // Set or replace the image with a URL. Removal is via DELETE /items/:id/image.
     image: urlImage,

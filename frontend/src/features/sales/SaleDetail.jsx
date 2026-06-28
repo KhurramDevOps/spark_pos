@@ -1,11 +1,17 @@
 import { useState } from "react";
 import { Modal, Badge, Button, ErrorText } from "../../components/ui";
 import { formatPaisa, decimalText } from "../../lib/format";
+import { warrantyStatus, formatYmd, karachiYMD } from "@shared/warranty/expiry.js";
 import { useSale, useVoidSale, useSaleReturns } from "./hooks";
 import SaleReturnForm from "./SaleReturnForm";
 
 function formatDate(d) {
   return new Date(d).toLocaleDateString("en-PK", { year: "numeric", month: "short", day: "numeric" });
+}
+// Today's Asia/Karachi date as YYYY-MM-DD (the default claim date for warranty checks).
+function todayKarachi() {
+  const { year, month, day } = karachiYMD(new Date());
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 const rsFromPaisa = (paisa) => formatPaisa(paisa);
 
@@ -16,6 +22,8 @@ export default function SaleDetail({ saleId, onClose }) {
   const voidMut = useVoidSale();
   const [confirming, setConfirming] = useState(false);
   const [showReturn, setShowReturn] = useState(false);
+  // Warranty claim check (spec 009): the date to test each term against (default today).
+  const [claimDate, setClaimDate] = useState(todayKarachi);
 
   const voided = s?.voided;
   const hasReturns = returns.length > 0;
@@ -153,6 +161,50 @@ export default function SaleDetail({ saleId, onClose }) {
               </tfoot>
             </table>
           </div>
+
+          {s.lines.some((l) => l.warranties?.length) && (
+            <div>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="text-xs font-medium uppercase tracking-wide text-fg-muted">Warranty</div>
+                <label className="flex items-center gap-2 text-xs text-fg-muted">
+                  Check as of
+                  <input
+                    type="date"
+                    className="rounded border border-line px-2 py-1 text-xs dark:bg-muted"
+                    value={claimDate}
+                    onChange={(e) => setClaimDate(e.target.value)}
+                  />
+                </label>
+              </div>
+              <div className="space-y-2">
+                {s.lines
+                  .filter((l) => l.warranties?.length)
+                  .map((l, i) => (
+                    <div key={i} className="rounded-md border border-line p-2">
+                      <div className="mb-1 text-sm font-medium text-fg">{l.itemId?.name ?? "—"}</div>
+                      <div className="space-y-1">
+                        {l.warranties.map((w, j) => {
+                          // claimDate is a YYYY-MM-DD string; the warranty clock runs from s.date.
+                          const { valid, expiry } = warrantyStatus(s.date, w, new Date(claimDate));
+                          return (
+                            <div key={j} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="text-fg-muted">
+                                {w.label || "Warranty"} — {w.durationValue} {w.durationUnit}
+                              </span>
+                              {valid ? (
+                                <Badge tone="green">Valid until {formatYmd(expiry)}</Badge>
+                              ) : (
+                                <Badge tone="gray">Expired on {formatYmd(expiry)}</Badge>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
 
           {hasReturns && (
             <div>

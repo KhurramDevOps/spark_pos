@@ -105,6 +105,7 @@ export async function createItem(input, { userId } = {}) {
             wholesalePrice: input.wholesalePrice,
             reorderLevel: input.reorderLevel ?? 0,
             notes: input.notes,
+            warranties: input.warranties ?? [],
             stockQty: openingQty,
             // A declared opening sets avgCost immediately; otherwise default 0.
             ...(hasOpeningCost ? { avgCost: toDecimal128(openingUnitCost) } : {}),
@@ -252,6 +253,7 @@ const UPDATABLE_FIELDS = [
   "wholesalePrice",
   "reorderLevel",
   "notes",
+  "warranties",
   "sku",
 ];
 

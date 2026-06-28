@@ -45,6 +45,19 @@ itemImageSchema.set("toJSON", {
   },
 });
 
+// One warranty term (spec 009). An item may carry several with different durations
+// (motor: 10 years, fan kit: 1 year). `label` is the component name (optional). These
+// are SNAPSHOTTED onto each item-kind Sale line at sale time so a past sale's warranty
+// is frozen even if the item's terms are later edited (the costAtTime pattern, ADR-007).
+const warrantyTermSchema = new Schema(
+  {
+    label: { type: String, trim: true, maxlength: 60, default: "" },
+    durationValue: { type: Number, required: true, min: 1, validate: isInteger },
+    durationUnit: { type: String, required: true, enum: ["years", "months", "days"] },
+  },
+  { _id: false }
+);
+
 const itemSchema = new Schema(
   {
     sku: { type: String, required: true, trim: true },
@@ -74,6 +87,11 @@ const itemSchema = new Schema(
     },
 
     notes: { type: String, trim: true },
+
+    // Warranty terms (spec 009). Default []; mutable metadata — editing affects only
+    // FUTURE sales (past sales hold their own snapshot).
+    warranties: { type: [warrantyTermSchema], default: [] },
+
     isActive: { type: Boolean, default: true },
 
     // Optional product image (spec 006b). Absent = no image (render placeholder).
@@ -92,4 +110,5 @@ itemSchema.index(
 );
 
 export const ITEM_BASE_UNITS = BASE_UNITS;
+export { warrantyTermSchema };
 export default mongoose.model("Item", itemSchema);

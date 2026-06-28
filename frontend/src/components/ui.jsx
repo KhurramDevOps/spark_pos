@@ -71,9 +71,9 @@ export function PasswordInput({ className = "", ...props }) {
   );
 }
 
-export function Select({ children, ...props }) {
+export function Select({ children, className = "", ...props }) {
   return (
-    <select className={inputClass} {...props}>
+    <select className={`${inputClass} ${className}`} {...props}>
       {children}
     </select>
   );

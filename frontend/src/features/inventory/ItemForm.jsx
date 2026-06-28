@@ -21,6 +21,12 @@ export default function ItemForm({ item, categories, onClose }) {
     reorderLevel: String(item?.reorderLevel ?? 0),
     notes: item?.notes ?? "",
     sku: item?.sku ?? "",
+    // Warranty terms (spec 009). Each row { label, durationValue(string), durationUnit }.
+    warranties: (item?.warranties ?? []).map((w) => ({
+      label: w.label ?? "",
+      durationValue: String(w.durationValue ?? ""),
+      durationUnit: w.durationUnit ?? "years",
+    })),
     openingQty: "0",
     imageUrl: "", // create-mode only; edit-mode image is handled by ImageEditor
   }));
@@ -31,6 +37,17 @@ export default function ItemForm({ item, categories, onClose }) {
   const [serverError, setServerError] = useState("");
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  // Warranty-term row editing (spec 009).
+  const addTerm = () =>
+    setForm((f) => ({ ...f, warranties: [...f.warranties, { label: "", durationValue: "", durationUnit: "years" }] }));
+  const removeTerm = (i) =>
+    setForm((f) => ({ ...f, warranties: f.warranties.filter((_, idx) => idx !== i) }));
+  const setTerm = (i, key) => (e) =>
+    setForm((f) => ({
+      ...f,
+      warranties: f.warranties.map((w, idx) => (idx === i ? { ...w, [key]: e.target.value } : w)),
+    }));
 
   const activeCategories = categories.filter((c) => c.isActive);
 
@@ -50,6 +67,15 @@ export default function ItemForm({ item, categories, onClose }) {
     payload.wholesalePrice =
       form.wholesalePrice.trim() === "" ? (isEdit ? null : undefined) : rupeesToPaisa(form.wholesalePrice);
     payload.notes = form.notes.trim() === "" ? (isEdit ? null : undefined) : form.notes.trim();
+    // Warranty terms: drop blank leftover rows; convert duration to a number so the
+    // shared schema validates it. Always send the array (empty clears on edit).
+    payload.warranties = form.warranties
+      .filter((w) => !(w.label.trim() === "" && String(w.durationValue).trim() === ""))
+      .map((w) => ({
+        label: w.label.trim(),
+        durationValue: Number(w.durationValue),
+        durationUnit: w.durationUnit,
+      }));
     if (form.sku.trim()) payload.sku = form.sku.trim();
     if (!isEdit) {
       // Opening stock is paired with its unit cost (spec 006c). Only send the
@@ -220,6 +246,58 @@ export default function ItemForm({ item, categories, onClose }) {
         <Field label="Notes" error={errors.notes}>
           <TextInput value={form.notes} onChange={set("notes")} />
         </Field>
+
+        {/* Warranty terms (spec 009). Several per item, each with its own duration —
+            e.g. motor: 10 years, fan kit: 1 year. Snapshotted onto each sale. */}
+        <div className="rounded-md border border-line p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-sm font-medium text-fg-muted">Warranty terms</span>
+            <button type="button" className="text-sm font-medium text-accent hover:text-accent" onClick={addTerm}>
+              + Add term
+            </button>
+          </div>
+          {form.warranties.length === 0 ? (
+            <p className="text-xs text-fg-subtle">
+              None. Add one per component (e.g. “motor — 10 years”, “fan kit — 1 year”).
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {form.warranties.map((w, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <TextInput
+                    className="flex-1"
+                    placeholder="Component (e.g. motor)"
+                    value={w.label}
+                    onChange={setTerm(i, "label")}
+                  />
+                  <TextInput
+                    className="w-20"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="10"
+                    value={w.durationValue}
+                    onChange={setTerm(i, "durationValue")}
+                  />
+                  <Select className="w-28" value={w.durationUnit} onChange={setTerm(i, "durationUnit")}>
+                    <option value="years">years</option>
+                    <option value="months">months</option>
+                    <option value="days">days</option>
+                  </Select>
+                  <button
+                    type="button"
+                    className="px-1 text-fg-subtle hover:text-red-600"
+                    aria-label="Remove warranty term"
+                    onClick={() => removeTerm(i)}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {errors.warranties && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{errors.warranties}</p>}
+        </div>
 
         <Field label="Image" error={errors.image}>
           {isEdit ? (

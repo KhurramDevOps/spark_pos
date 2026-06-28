@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { warrantyTermSchema } from "./Item.js";
 
 const { Schema } = mongoose;
 
@@ -32,6 +33,10 @@ const saleLineSchema = new Schema(
     itemId: { type: Schema.Types.ObjectId, ref: "Item", required: isItemLine },
     suggestedPrice: { type: Schema.Types.Decimal128, required: isItemLine }, // paisa, server-derived
     costAtTime: { type: Schema.Types.Decimal128, required: isItemLine }, // paisa, avgCost snapshot (COGS)
+    // Warranty terms SNAPSHOTTED from the item at sale time (spec 009). Frozen here so
+    // a past sale's warranty is unaffected by later item edits (the costAtTime pattern).
+    // Absent on quick lines. Default [] for item lines that had no terms.
+    warranties: { type: [warrantyTermSchema], default: undefined },
 
     // quick-kind only (required when kind === "quick", absent for item):
     name: { type: String, trim: true, minlength: 1, maxlength: 120, required: isQuickLine },

@@ -13,7 +13,7 @@ Read `docs/PROJECT_PLAN.md` for the full product spec, domain model, and roadmap
 active spec in `docs/specs/` before implementing a feature.
 
 **Status:** Phases 1–3 + 5 + 6 shipped (specs 001, 002, 003, 003b, 004, 004b, 005, 006, 006b,
-006c, 008). Purchase side and sell side are both fully recoverable in-app (reversals/voids/returns);
+006c, 008, 009). Purchase side and sell side are both fully recoverable in-app (reversals/voids/returns);
 expenses, drawer adjustments, and a daily-close screen (cash math + gross profit/net + per-line
 drill-downs) are live; a windowed Reports screen (headline tiles with vs-prior deltas,
 profit-per-day trend, item performance + dead stock, expense breakdown, khata snapshot) reads
@@ -22,7 +22,10 @@ outside Mongo behind a storage-driver interface — ADR-012) show across Invento
 picker, and Reports; opening stock is a first-class cost-bearing declaration with an owner-only
 repair tool for legacy cost = 0 items (ADR-013); **Quick Sale** lines sell uncatalogued goods
 (name + price, no stock, no cost basis) — their revenue counts as cash but is kept out of COGS
-gross profit everywhere it's reported (ADR-016). **The correctness foundation is complete and
+gross profit everywhere it's reported (ADR-016); items carry **warranty terms** (several per
+item, e.g. motor 10y + fan kit 1y) that are snapshotted onto each sale line and checked against
+the sale date on Sale Detail (ADR-017 — snapshot mutable per-sale facts, derive the rest on
+read). **The correctness foundation is complete and
 the profit numbers are honest. Next: confirm the real ~200-item CSV import has been run against
 production; the totals/Khata-labeling slice on Customers/Suppliers; the rest of the visual polish
 pass (Reports/Customers/Suppliers/Sales History); start using the now-live S3/R2 image upload for

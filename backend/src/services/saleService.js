@@ -153,6 +153,14 @@ export async function recordSale(input, { userId } = {}) {
       const suggestedPrice = suggestedPriceFor(item, priceMode);
       removedByItem.set(key, add(removedByItem.get(key) ?? "0", qty));
 
+      // Snapshot warranty terms (spec 009) the same way costAtTime is snapshotted:
+      // frozen onto the immutable line so later item edits never alter a past sale.
+      const warranties = (item.warranties ?? []).map((w) => ({
+        label: w.label ?? "",
+        durationValue: w.durationValue,
+        durationUnit: w.durationUnit,
+      }));
+
       storedLines.push({
         kind: "item",
         itemId: item._id,
@@ -161,6 +169,7 @@ export async function recordSale(input, { userId } = {}) {
         suggestedPrice: toDecimal128(suggestedPrice),
         costAtTime: toDecimal128(costAtTime),
         lineTotal: toDecimal128(lineTotal),
+        ...(warranties.length > 0 ? { warranties } : {}),
       });
     }
 
