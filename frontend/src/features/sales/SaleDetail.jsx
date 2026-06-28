@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { Modal, Badge, Button, ErrorText } from "../../components/ui";
-import { formatPaisa, decimalText } from "../../lib/format";
+import { formatPaisa, decimalText, paisaToRupeesInput } from "../../lib/format";
 import { warrantyStatus, formatYmd, karachiYMD } from "@shared/warranty/expiry.js";
+import { useAuth } from "../auth/useAuth";
+import { useCategories } from "../inventory/hooks";
+import ItemForm from "../inventory/ItemForm";
 import { useSale, useVoidSale, useSaleReturns } from "./hooks";
 import SaleReturnForm from "./SaleReturnForm";
 
@@ -17,6 +20,8 @@ const rsFromPaisa = (paisa) => formatPaisa(paisa);
 
 /** View of one posted sale: per-line price/cost/profit, with void + return actions. */
 export default function SaleDetail({ saleId, onClose }) {
+  const { isOwner } = useAuth();
+  const { data: categories = [] } = useCategories();
   const { data: s, isLoading, error } = useSale(saleId);
   const { data: returns = [] } = useSaleReturns(saleId);
   const voidMut = useVoidSale();
@@ -24,6 +29,8 @@ export default function SaleDetail({ saleId, onClose }) {
   const [showReturn, setShowReturn] = useState(false);
   // Warranty claim check (spec 009): the date to test each term against (default today).
   const [claimDate, setClaimDate] = useState(todayKarachi);
+  // Quick line being catalogued (slice 6): seeds the item create form. null = closed.
+  const [promoteLine, setPromoteLine] = useState(null);
 
   const voided = s?.voided;
   const hasReturns = returns.length > 0;
@@ -35,10 +42,14 @@ export default function SaleDetail({ saleId, onClose }) {
     } catch { /* shown inline */ }
   }
 
+  // Quick lines have NO cost basis (ADR-016) — their profit is unknown and must never
+  // be formed from a defaulted cost of 0. Skip them in the sale's total profit.
   const totalProfit =
     s?.lines.reduce(
       (sum, l) =>
-        sum + (Number(decimalText(l.unitPrice)) - Number(decimalText(l.costAtTime))) * Number(decimalText(l.qty)),
+        l.kind === "quick"
+          ? sum
+          : sum + (Number(decimalText(l.unitPrice)) - Number(decimalText(l.costAtTime))) * Number(decimalText(l.qty)),
       0
     ) ?? 0;
 
@@ -124,8 +135,36 @@ export default function SaleDetail({ saleId, onClose }) {
               <tbody className="divide-y divide-line">
                 {s.lines.map((l, i) => {
                   const price = Number(decimalText(l.unitPrice));
-                  const cost = Number(decimalText(l.costAtTime));
                   const qty = Number(decimalText(l.qty));
+
+                  // Quick line (ADR-016): no cost basis → no cost/profit shown (an unknown
+                  // cost must never read as 0). Owner can catalogue it for FUTURE sales.
+                  if (l.kind === "quick") {
+                    return (
+                      <tr key={i}>
+                        <td className="px-3 py-2 text-fg">
+                          {l.name}
+                          <span className="ml-2"><Badge tone="gray">quick</Badge></span>
+                          {isOwner && (
+                            <button
+                              type="button"
+                              className="ml-2 text-xs font-medium text-accent hover:text-accent"
+                              onClick={() => setPromoteLine(l)}
+                              title="Create a catalogued item from this — for future sales only"
+                            >
+                              Catalogue this item
+                            </button>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">{decimalText(l.qty)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{rsFromPaisa(price)}</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-fg-subtle">—</td>
+                        <td className="px-3 py-2 text-right tabular-nums text-fg-subtle">—</td>
+                      </tr>
+                    );
+                  }
+
+                  const cost = Number(decimalText(l.costAtTime));
                   const profit = ((price - cost) * qty) / 100;
                   const belowCost = price < cost;
                   return (
@@ -247,6 +286,17 @@ export default function SaleDetail({ saleId, onClose }) {
       )}
 
       {showReturn && s && <SaleReturnForm sale={s} onClose={() => setShowReturn(false)} />}
+
+      {/* Promote a quick line to a catalogued item (slice 6) — forward-only: this just
+          creates a new Item for future sales, prefilled from the quick line. It does NOT
+          touch this immutable sale (ADR-007); the quick line stays cost-less. */}
+      {promoteLine && (
+        <ItemForm
+          categories={categories}
+          prefill={{ name: promoteLine.name, retailPrice: paisaToRupeesInput(Number(decimalText(promoteLine.unitPrice))) }}
+          onClose={() => setPromoteLine(null)}
+        />
+      )}
     </Modal>
   );
 }

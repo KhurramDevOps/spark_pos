@@ -6,17 +6,19 @@ import { useCreateItem, useUpdateItem } from "./hooks";
 import ImageEditor from "./ImageEditor";
 import RepairOpeningSection from "./RepairOpeningSection";
 
-export default function ItemForm({ item, categories, onClose }) {
+export default function ItemForm({ item, categories, onClose, prefill }) {
   const isEdit = Boolean(item);
   const createMut = useCreateItem();
   const updateMut = useUpdateItem();
   const mutation = isEdit ? updateMut : createMut;
 
+  // `prefill` (slice 6) seeds create-mode from a quick sale line being catalogued —
+  // name + last price only; the owner fills category, unit, etc. Ignored in edit mode.
   const [form, setForm] = useState(() => ({
-    name: item?.name ?? "",
+    name: item?.name ?? prefill?.name ?? "",
     categoryId: item?.categoryId?._id ?? item?.categoryId ?? "",
     baseUnit: item?.baseUnit ?? "piece",
-    retailPrice: item ? paisaToRupeesInput(item.retailPrice) : "",
+    retailPrice: item ? paisaToRupeesInput(item.retailPrice) : (prefill?.retailPrice ?? ""),
     wholesalePrice: item?.wholesalePrice != null ? paisaToRupeesInput(item.wholesalePrice) : "",
     reorderLevel: String(item?.reorderLevel ?? 0),
     notes: item?.notes ?? "",
