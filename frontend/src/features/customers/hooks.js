@@ -25,6 +25,14 @@ export function useCustomerPayments(id) {
   });
 }
 
+export function useCustomerAdjustments(id) {
+  return useQuery({
+    queryKey: ["customerAdjustments", id],
+    queryFn: () => api.fetchCustomerAdjustments(id),
+    enabled: Boolean(id),
+  });
+}
+
 // Only CREDIT sales belong in a khata ledger — a cash sale is settled on the spot
 // and never touches udhaar. Keyed under ["sales", ...] so a new sale (which
 // invalidates ["sales"]) refreshes it.
@@ -75,6 +83,19 @@ export function useRecordCustomerPayment() {
       qc.invalidateQueries({ queryKey: ["customers"] });
       qc.invalidateQueries({ queryKey: ["customer", id] });
       qc.invalidateQueries({ queryKey: ["customerPayments", id] });
+    },
+  });
+}
+
+/** A recorded correction moves the khata balance (its own transaction; not cash). */
+export function useRecordCustomerAdjustment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...body }) => api.recordCustomerAdjustment(id, body),
+    onSuccess: (_data, { id }) => {
+      qc.invalidateQueries({ queryKey: ["customers"] });
+      qc.invalidateQueries({ queryKey: ["customer", id] });
+      qc.invalidateQueries({ queryKey: ["customerAdjustments", id] });
     },
   });
 }

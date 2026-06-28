@@ -3,9 +3,10 @@ import { Modal, Badge, Button } from "../../components/ui";
 import { useAuth } from "../auth/useAuth";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
-import { useCustomer, useCustomerPayments, useCustomerCreditSales } from "./hooks";
+import { useCustomer, useCustomerPayments, useCustomerCreditSales, useCustomerAdjustments } from "./hooks";
 import { khataOverdue, promisedDateLabel } from "./overdue";
 import CustomerPaymentForm from "./CustomerPaymentForm";
+import CustomerAdjustmentForm from "./CustomerAdjustmentForm";
 import CustomerForm from "./CustomerForm";
 
 function formatDate(d) {
@@ -18,7 +19,7 @@ function formatDate(d) {
  * NOT part of udhaar — they never appear here and never affect the balance (spec
  * 004). Credit sales (+) and payments (−) move the balance.
  */
-function buildLedger(openingBalance, creditSales, payments) {
+function buildLedger(openingBalance, creditSales, payments, adjustments) {
   const events = [
     ...creditSales
       .filter((s) => s.paymentType === "credit") // defensive: khata is credit-only
@@ -36,6 +37,15 @@ function buildLedger(openingBalance, creditSales, payments) {
       createdAt: pm.createdAt,
       amount: Number(decimalText(pm.amount)),
       note: pm.note,
+    })),
+    // Adjustments carry a SIGNED amount (+ increases owed, − decreases) — spec 010.
+    ...adjustments.map((a) => ({
+      kind: "adjustment",
+      id: a._id,
+      date: a.date,
+      createdAt: a.createdAt,
+      amount: Number(decimalText(a.amount)),
+      note: a.reason,
     })),
   ];
 
@@ -63,15 +73,17 @@ export default function CustomerDetail({ customerId, onClose }) {
   // available to workers. Hide rather than 403.
   const { isOwner } = useAuth();
   const [showPayment, setShowPayment] = useState(false);
+  const [showAdjust, setShowAdjust] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
   const { data: customer, isLoading, error } = useCustomer(customerId);
   const { data: payments = [] } = useCustomerPayments(customerId);
+  const { data: adjustments = [] } = useCustomerAdjustments(customerId);
   const { data: salesData } = useCustomerCreditSales(customerId);
   const creditSales = salesData?.sales ?? [];
 
   const opening = customer ? decimalText(customer.openingBalance) : "0";
-  const rows = customer ? buildLedger(opening, creditSales, payments) : [];
+  const rows = customer ? buildLedger(opening, creditSales, payments, adjustments) : [];
   const bal = customer ? formatBalance(decimalText(customer.balance), CUSTOMER_BALANCE_LABELS) : null;
   const balanceNum = customer ? Number(decimalText(customer.balance)) : 0;
   const openingNum = Number(opening);
@@ -85,6 +97,11 @@ export default function CustomerDetail({ customerId, onClose }) {
           {isOwner && (
             <Button variant="secondary" onClick={() => setShowEdit(true)} disabled={!customer}>
               Edit
+            </Button>
+          )}
+          {isOwner && (
+            <Button variant="secondary" onClick={() => setShowAdjust(true)} disabled={!customer}>
+              Adjust khata
             </Button>
           )}
           <Button onClick={() => setShowPayment(true)} disabled={!customer}>
@@ -156,6 +173,11 @@ export default function CustomerDetail({ customerId, onClose }) {
                           <span className="text-fg">
                             Payment{r.note ? <span className="ml-1 text-xs text-fg-subtle">{r.note}</span> : null}
                           </span>
+                        ) : r.kind === "adjustment" ? (
+                          <span className="text-fg">
+                            Adjustment <Badge tone="gray">correction</Badge>
+                            {r.note ? <span className="ml-1 text-xs text-fg-subtle">{r.note}</span> : null}
+                          </span>
                         ) : (
                           <span className="text-fg">
                             Sale <Badge tone="amber">credit</Badge>
@@ -192,6 +214,9 @@ export default function CustomerDetail({ customerId, onClose }) {
 
       {showPayment && customer && (
         <CustomerPaymentForm customer={customer} onClose={() => setShowPayment(false)} />
+      )}
+      {showAdjust && customer && (
+        <CustomerAdjustmentForm customer={customer} onClose={() => setShowAdjust(false)} />
       )}
       {showEdit && customer && (
         <CustomerForm customer={customer} onClose={() => setShowEdit(false)} />

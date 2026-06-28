@@ -95,6 +95,8 @@ const EXPECTED = {
       "POST /:id/reactivate": OWNER,
       "GET /:id/payments": AUTH,
       "POST /:id/payments": V(AUTH),
+      "GET /:id/adjustments": AUTH,
+      "POST /:id/adjustments": V(OWNER),
     },
   },
   "/api/purchases": {

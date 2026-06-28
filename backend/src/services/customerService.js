@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
 import Customer from "../models/Customer.js";
 import CustomerPayment from "../models/CustomerPayment.js";
+import CustomerAdjustment from "../models/CustomerAdjustment.js";
 import {
   parseDecimal,
   decimalToString,
   toDecimal128,
+  add,
   subtract,
   isNegative,
   isZero,
@@ -166,5 +168,44 @@ export async function recordCustomerPayment(input, { userId } = {}) {
     await customer.save({ session });
 
     return { payment, customer };
+  });
+}
+
+/** Adjustments for one customer, newest first (the khata ledger reads these). */
+export async function listCustomerAdjustments(customerId) {
+  return CustomerAdjustment.find({ customerId }).sort({ date: -1, createdAt: -1 });
+}
+
+/**
+ * Record a khata balance correction (spec 010 / ADR-018): write the CustomerAdjustment
+ * AND move the customer's balance by the SIGNED amount, in one transaction. This is NOT
+ * a payment — it never touches the daily-close cash math (separate collection). Balance
+ * may go negative (store credit) — allowed and surfaced. Mirrors recordCustomerPayment.
+ *
+ * Amount is SIGNED PAISA (the route maps the increase/decrease toggle to the sign).
+ * @param {object} input - { customerId, amount (signed paisa string, non-zero), reason, date? }
+ * @param {object} ctx - { userId }
+ */
+export async function recordCustomerAdjustment(input, { userId } = {}) {
+  if (!userId) throw new Error("userId is required (audit)");
+
+  const amount = parseDecimal(input.amount, "amount");
+  if (isZero(amount)) throw httpError("adjustment amount must be greater than 0", 400);
+  const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+  if (!reason) throw httpError("a reason is required for a khata adjustment", 400);
+
+  return runInTransaction(async (session) => {
+    const customer = await Customer.findById(input.customerId).session(session);
+    if (!customer) throw httpError("customer not found", 400);
+
+    const [adjustment] = await CustomerAdjustment.create(
+      [{ customerId: customer._id, amount: toDecimal128(amount), reason, date: input.date ?? new Date(), createdBy: userId }],
+      { session }
+    );
+
+    customer.balance = toDecimal128(add(decimalToString(customer.balance), amount));
+    await customer.save({ session });
+
+    return { adjustment, customer };
   });
 }

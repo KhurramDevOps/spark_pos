@@ -6,6 +6,8 @@ import {
   setCustomerActive,
   recordCustomerPayment,
   listCustomerPayments,
+  recordCustomerAdjustment,
+  listCustomerAdjustments,
 } from "../services/customerService.js";
 import { rupeesToPaisa } from "../../../shared/validation/money.js";
 
@@ -61,6 +63,22 @@ export const recordPayment = wrap(async (req, res) => {
       date: v.date,
       note: v.note,
     },
+    { userId: req.userId }
+  );
+  res.status(201).json(result);
+});
+
+export const adjustments = wrap(async (req, res) => {
+  res.json(await listCustomerAdjustments(req.params.id));
+});
+
+export const recordAdjustment = wrap(async (req, res) => {
+  const v = req.validated;
+  // Map the increase/decrease toggle + positive rupees → a signed paisa amount.
+  const magnitude = rupeesToPaisa(v.amount, "amount").value;
+  const signed = v.direction === "decrease" ? -magnitude : magnitude;
+  const result = await recordCustomerAdjustment(
+    { customerId: req.params.id, amount: String(signed), reason: v.reason, date: v.date },
     { userId: req.userId }
   );
   res.status(201).json(result);

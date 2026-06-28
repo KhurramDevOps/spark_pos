@@ -15,6 +15,42 @@ Format:
 
 ---
 
+## ADR-018 — Khata balance corrections are recorded adjustments excluded from cash, never edits to the opening balance
+- Date: 2026-06-28
+- Status: accepted
+- Context: A customer's khata balance sometimes needs correcting — most often a mistyped
+  `openingBalance`, but also a write-off or an under-recorded old debt. `openingBalance`
+  is an immutable starting point (spec 004) and there was no way to fix a balance outside
+  a real sale/payment. Two wrong ways to do this: (1) silently edit `openingBalance` /
+  `balance` — destroys the audit trail and the immutability guarantee (ADR-007); (2)
+  record the fix as a `CustomerPayment` — but ADR-009 counts EVERY `CustomerPayment` as
+  cash in the daily close, so a correction would inflate that day's drawer. (Spec 010.)
+- Decision:
+  - **A correction is its own recorded entry, a new `CustomerAdjustment`** ({ customerId,
+    signed-paisa `amount`, required `reason`, `date`, `createdBy` }), applied to
+    `customer.balance += amount` in ONE transaction (mirrors `recordCustomerPayment`).
+    `openingBalance` is never touched; the running balance moves via the adjustment.
+  - **Append-only / immutable** — a wrong adjustment is fixed by another adjustment, never
+    edited or deleted (same philosophy as voids/reversals). The `reason` is the audit
+    trail and is mandatory.
+  - **Excluded from cash BY CONSTRUCTION.** The daily-close cash math sums
+    `CustomerPayment` only (ADR-009); `CustomerAdjustment` is a SEPARATE collection the
+    cash aggregation never reads — the cash/correction firewall. A test asserts an
+    adjustment does not move a day's expected cash. This is the whole reason it is not a
+    `CustomerPayment`.
+  - **Reports need no new code:** the khata receivable reads the cached `Customer.balance`
+    (ADR-011), which the adjustment moves in-txn. Not a sale → no COGS/profit effect.
+  - **Owner-only to create** (a sensitive correction), viewable by all (it shows in the
+    khata ledger). The UI offers an increase/decrease toggle + positive amount; the route
+    maps it to the signed paisa the service stores.
+  - **EXTENSION POINT:** a symmetric `SupplierAdjustment` (correct a payable) is the
+    obvious future mirror — a later spec, same shape, excluded from cash the same way.
+- Consequences: khata balances are correctable with a full audit trail and zero cash-math
+  contamination; the new surface is small (a model + two service functions + a form +
+  one ledger row) and reuses the tested payment/transaction patterns. Generalizes the
+  cash-vs-correction stance (ADR-009) and the immutability stance (ADR-007) to the
+  balance-correction case.
+
 ## ADR-017 — Per-sale facts that can change on the item are SNAPSHOTTED onto the line, never re-derived
 - Date: 2026-06-28
 - Status: accepted

@@ -22,6 +22,13 @@ export const fetchCustomerPayments = (id) => apiClient.get(`/customers/${id}/pay
 export const recordCustomerPayment = (id, body) =>
   apiClient.post(`/customers/${id}/payments`, body);
 
+// ---- Khata adjustments (corrections) --------------------------------------
+
+export const fetchCustomerAdjustments = (id) => apiClient.get(`/customers/${id}/adjustments`);
+// body: { direction: "increase"|"decrease", amount(rupees), reason, date? }
+export const recordCustomerAdjustment = (id, body) =>
+  apiClient.post(`/customers/${id}/adjustments`, body);
+
 // ---- Sales (for the khata ledger) -----------------------------------------
 
 export function fetchSales({ customerId, paymentType, limit } = {}) {

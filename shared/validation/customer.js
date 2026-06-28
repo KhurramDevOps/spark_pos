@@ -32,3 +32,18 @@ export const customerPaymentSchema = z
     message: "amount must be greater than 0",
     path: ["amount"],
   });
+
+// Khata balance correction (spec 010 / ADR-018). The owner picks a direction +
+// positive amount; the route maps it to a signed paisa amount. `reason` is required
+// (the audit trail). This is NOT a payment — it never enters the daily-close cash math.
+export const customerAdjustmentSchema = z
+  .object({
+    direction: z.enum(["increase", "decrease"]),
+    amount: rupeesString("amount"),
+    reason: z.string().trim().min(1, "a reason is required").max(2000),
+    date: z.coerce.date().optional(),
+  })
+  .refine((d) => /[1-9]/.test(d.amount), {
+    message: "amount must be greater than 0",
+    path: ["amount"],
+  });
