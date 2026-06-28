@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal, Field, TextInput, Select, Button, ErrorText } from "../../components/ui";
 import { createPurchaseSchema } from "@shared/validation/purchase.js";
+import { BUNDLE_GAZ } from "@shared/inventory/bundle.js";
 import { apiClient } from "../../lib/apiClient";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { useCreatePurchase, useSuppliers, useCreateSupplier } from "./hooks";
@@ -177,6 +178,10 @@ export default function PurchaseForm({ onClose }) {
           </div>
           {lines.map((l, idx) => {
             const lt = lineRupees(l);
+            // Bundle item (spec 011): the owner enters BUNDLES + price-per-bundle; the
+            // server converts to canonical per-gaz. The wire shape is unchanged.
+            const isBundle = !!l.item?.bundle;
+            const gazHint = isBundle && Number(l.qty) > 0 ? Number(l.qty) * BUNDLE_GAZ : null;
             return (
               <div key={l.key} className="rounded-md border border-line p-2">
                 <div className="mb-2">
@@ -190,19 +195,22 @@ export default function PurchaseForm({ onClose }) {
                 <div className="flex items-end gap-2">
                   <div className="flex-1">
                     <span className="mb-1 block text-xs text-fg-muted">
-                      Quantity{l.item ? ` (${l.item.baseUnit})` : ""}
+                      {isBundle ? "Bundles" : `Quantity${l.item ? ` (${l.item.baseUnit})` : ""}`}
                     </span>
-                    <TextInput value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} placeholder="e.g. 100" />
+                    <TextInput value={l.qty} onChange={(e) => setLine(l.key, { qty: e.target.value })} placeholder={isBundle ? "e.g. 5" : "e.g. 100"} />
+                    {gazHint != null && (
+                      <span className="mt-0.5 block text-xs text-indigo-600 dark:text-indigo-300">= {gazHint} gaz</span>
+                    )}
                   </div>
                   <div className="flex-1">
-                    <span className="mb-1 block text-xs text-fg-muted">Unit cost (Rs)</span>
+                    <span className="mb-1 block text-xs text-fg-muted">{isBundle ? "Price per bundle (Rs)" : "Unit cost (Rs)"}</span>
                     <TextInput
                       type="number"
                       step="0.01"
                       min="0"
                       value={l.unitCost}
                       onChange={(e) => setLine(l.key, { unitCost: e.target.value })}
-                      placeholder="110.50"
+                      placeholder={isBundle ? "e.g. 900" : "110.50"}
                     />
                   </div>
                   <div className="w-28 pb-2 text-right text-sm tabular-nums text-fg-muted">

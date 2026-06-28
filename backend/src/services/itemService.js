@@ -6,6 +6,7 @@ import { generateSku } from "./skuService.js";
 import { deleteStoredImageIfUpload } from "./imageService.js";
 import { parseDecimal, subtract, isZero, isNegative, decimalToString, toDecimal128 } from "../lib/decimal.js";
 import { rankItemMatches } from "../lib/itemSearch.js";
+import { bundleToGaz } from "./purchaseService.js";
 
 /**
  * Run `fn(session)` inside a single MongoDB transaction. Every write that
@@ -48,8 +49,16 @@ function rethrowDuplicateSku(err, sku) {
 export async function createItem(input, { userId } = {}) {
   if (!userId) throw new Error("userId is required (audit)");
 
+  // Bundle items are gaz-only (spec 011). Guard here too — the service is called
+  // directly (e.g. imports/tests) without the Zod refinement.
+  if (input.bundle === true && input.baseUnit !== "gaz") {
+    const e = new Error("bundle items must have base unit gaz");
+    e.status = 400;
+    throw e;
+  }
+
   // Validate the opening quantity up front so a bad value never reaches the DB.
-  const openingQty = parseDecimal(input.openingQty ?? "0", "openingQty");
+  let openingQty = parseDecimal(input.openingQty ?? "0", "openingQty");
   if (isNegative(openingQty)) {
     const e = new Error("openingQty cannot be negative");
     e.status = 400;
@@ -73,6 +82,15 @@ export async function createItem(input, { userId } = {}) {
       e.status = 400;
       throw e;
     }
+  }
+
+  // Bundle item (spec 011): opening stock is declared in bundles + price-per-bundle.
+  // Convert to canonical per-gaz so the opening movement + avgCost match how purchases
+  // are stored (the cost engine never sees bundles). Opening has no payable to reconcile.
+  if (input.bundle === true && !isZero(openingQty)) {
+    const conv = bundleToGaz(openingQty, hasOpeningCost ? openingUnitCost : "0");
+    openingQty = conv.qtyGaz; // bundles → gaz
+    if (hasOpeningCost) openingUnitCost = conv.unitCostPerGaz; // per-bundle → per-gaz
   }
 
   const manualSku = input.sku != null && String(input.sku).trim() !== "";
@@ -106,6 +124,7 @@ export async function createItem(input, { userId } = {}) {
             reorderLevel: input.reorderLevel ?? 0,
             notes: input.notes,
             warranties: input.warranties ?? [],
+            bundle: input.bundle === true,
             stockQty: openingQty,
             // A declared opening sets avgCost immediately; otherwise default 0.
             ...(hasOpeningCost ? { avgCost: toDecimal128(openingUnitCost) } : {}),
@@ -254,6 +273,7 @@ const UPDATABLE_FIELDS = [
   "reorderLevel",
   "notes",
   "warranties",
+  "bundle",
   "sku",
 ];
 
@@ -278,6 +298,15 @@ export async function updateItem(id, input, { userId } = {}) {
       e.status = 409;
       throw e;
     }
+  }
+
+  // Bundle ⇒ gaz, checked against the RESULTING baseUnit (a patch may set only the flag).
+  const resultingBaseUnit = input.baseUnit ?? item.baseUnit;
+  const resultingBundle = input.bundle ?? item.bundle;
+  if (resultingBundle === true && resultingBaseUnit !== "gaz") {
+    const e = new Error("bundle items must have base unit gaz");
+    e.status = 400;
+    throw e;
   }
 
   if (input.categoryId !== undefined && String(input.categoryId) !== String(item.categoryId)) {

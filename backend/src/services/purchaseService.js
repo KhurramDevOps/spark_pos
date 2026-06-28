@@ -16,10 +16,32 @@ import {
   isZero,
   HALF_EVEN,
 } from "../lib/decimal.js";
+import { BUNDLE_GAZ } from "../../../shared/inventory/bundle.js";
 
 // avgCost is kept to this many fractional digits of paisa, round-half-even
 // (spec 003 / ADR-005). NOT whole-paisa — that would drift COGS.
 export const AVG_COST_SCALE = 10;
+
+/**
+ * Convert a bundle purchase/opening (spec 011 / ADR-019) — entered as `bundles` +
+ * `pricePerBundle` (paisa) — into the CANONICAL per-gaz terms the rest of the system
+ * stores. The cost engine, StockMovements, COGS and replay are all per-gaz and stay
+ * untouched: the bundle→gaz conversion happens once, here, at the entry boundary.
+ *  - qtyGaz         = bundles × 90 (exact)
+ *  - unitCostPerGaz = pricePerBundle ÷ 90, Decimal at scale 10 (NOT whole-paisa — that
+ *                     would drift ×90; ADR-005). Fed to applyPurchaseToCost / costAtTime.
+ *  - payable        = bundles × pricePerBundle, EXACT, decoupled from the rounded per-gaz
+ *                     cost — what the supplier is actually owed (ADR-005 money split).
+ * @returns {{ qtyGaz: string, unitCostPerGaz: string, payable: string }} decimal strings
+ */
+export function bundleToGaz(bundles, pricePerBundlePaisa) {
+  const B = String(BUNDLE_GAZ);
+  return {
+    qtyGaz: multiply(bundles, B),
+    unitCostPerGaz: divide(pricePerBundlePaisa, B, AVG_COST_SCALE, HALF_EVEN),
+    payable: multiply(bundles, pricePerBundlePaisa),
+  };
+}
 
 /** Run `fn(session)` inside a single MongoDB transaction (golden rule #3). */
 async function runInTransaction(fn) {
@@ -127,20 +149,35 @@ export async function recordPurchase(input, { userId } = {}) {
         itemsById.set(key, item);
       }
 
+      // Bundle item (spec 011): the line was entered as bundles + price-per-bundle.
+      // Convert to canonical per-gaz NOW so everything downstream (cost engine, stock,
+      // movement, COGS, replay) is unchanged. The payable is the EXACT bundle figure,
+      // decoupled from the rounded per-gaz cost (ADR-005). Non-bundle items: unchanged.
+      let effQty = qty;
+      let effUnitCost = unitCost;
+      let lineTotal;
+      if (item.bundle) {
+        const conv = bundleToGaz(qty, unitCost);
+        effQty = conv.qtyGaz;
+        effUnitCost = conv.unitCostPerGaz;
+        lineTotal = conv.payable;
+      } else {
+        lineTotal = multiply(qty, unitCost); // paisa, full precision
+      }
+
       const oldQty = decimalToString(item.stockQty);
       const oldAvg = decimalToString(item.avgCost);
-      const { newAvg, newStock } = applyPurchaseToCost(oldQty, oldAvg, qty, unitCost);
+      const { newAvg, newStock } = applyPurchaseToCost(oldQty, oldAvg, effQty, effUnitCost);
 
       item.stockQty = toDecimal128(newStock);
       item.avgCost = toDecimal128(newAvg);
 
-      const lineTotal = multiply(qty, unitCost); // paisa, full precision
       totalExact = add(totalExact, lineTotal);
 
       storedLines.push({
         itemId: item._id,
-        qty: toDecimal128(qty),
-        unitCost: toDecimal128(unitCost),
+        qty: toDecimal128(effQty),
+        unitCost: toDecimal128(effUnitCost),
         lineTotal: toDecimal128(lineTotal),
       });
     }

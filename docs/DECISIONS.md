@@ -15,6 +15,57 @@ Format:
 
 ---
 
+## ADR-019 — A 90-gaz bundle is a fixed entry/display convention over a canonical per-gaz base unit
+- Date: 2026-06-28
+- Status: accepted
+- Context: Wire/cable is BOUGHT in sealed bundles but SOLD by the gaz (a fractional
+  length); every bundle is exactly 90 gaz — a fixed, universal trade constant, not a
+  per-item setting. The shop needs correct per-gaz COGS from bundle-priced purchases and
+  a stock/price display that speaks both bundles and gaz, without disturbing the cost
+  engine (003/003b/004) that the whole system's profit correctness rests on. (Spec 011.)
+- Decision:
+  - **The canonical unit is always the gaz.** `stockQty` (total gaz), `avgCost`/
+    `costAtTime` (per-gaz, Decimal128 at AVG_COST_SCALE=10), `retailPrice`/`wholesalePrice`
+    (per-gaz integer paisa), and every StockMovement are all per-gaz. "Bundle" is a
+    DATA-ENTRY + DISPLAY convention layered on top — never a stored quantity/cost.
+  - **A per-item boolean `Item.bundle`** (valid only when `baseUnit === "gaz"`, enforced
+    both ends) marks "bought by the bundle". A single shared constant `BUNDLE_GAZ = 90` is
+    the only bundle size — **no per-item bundle-size field.** (We deliberately did NOT use
+    the locked `units[]`/`factorToBase` extension point from spec 001: that is for VARIABLE
+    factors; the requirement is one fixed 90, and a boolean + constant can't be
+    misconfigured. A variable bundle size, if ever needed, is a future spec on `units[]`.)
+  - **Buy by the bundle, sell by the gaz (the asymmetry):**
+    - **RETAIL is entered & stored PER GAZ, exact** (you sell by the gaz; that figure is
+      the real transactional number and is never rounded). Per-bundle (×90) is a
+      display-only hint.
+    - **COST is divided ÷90 ONCE, at PURCHASE/opening time** (`bundleToGaz`), into a
+      per-gaz Decimal at scale 10 — never rounded to whole paisa (that would drift ×90),
+      and **never divided at sale time** (by then avgCost is already per-gaz). The supplier
+      **payable is computed from the EXACT bundle figures** (`bundles × pricePerBundle`),
+      decoupled from the rounded per-gaz cost — the ADR-005 money/cost split, so no paisa
+      leaks.
+  - **Convert ONCE, at the entry boundary; the engine sees only gaz.** Because purchases/
+    openings write canonical per-gaz StockMovements, the avgCost/replay/reversal/COGS code
+    is byte-for-byte unchanged. The safety property is a regression test asserting a bundle
+    purchase produces identical `stockQty`/`avgCost`/`costAtTime`/profit and an identical
+    `recomputeItemCostByReplay` result to the equivalent hand-entered per-gaz purchase,
+    plus a non-clean-divide (Rs 950÷90) reconciliation (exact Decimal per-gaz cost, exact
+    payable, 90×avg reconciles).
+  - **Display:** a pure `formatBundleStock` (÷90) shows "B bundles + L gaz" for bundle
+    items across Inventory / POS / Sale Detail; the per-gaz rate is colour-highlighted so
+    it scans in a long list. Negative stock is shown honestly as raw gaz.
+  - **Forward-only flag, no migration.** Setting/clearing `bundle` mutates NO stored value
+    and never reinterprets an existing number — an existing wire item's `stockQty` is
+    already in gaz, so it is merely shown differently. A mis-entered stock count is fixed by
+    the existing adjustment/opening-repair tools, never silently by the flag. Non-gaz wire
+    items can't be flagged (baseUnit is itself locked once stock moves); they are
+    re-declared cleanly.
+- Consequences: correct per-gaz COGS from bundle-priced buys with the riskiest code (the
+  cost engine) frozen and proven drift-free; a small surface (one flag + one constant + one
+  boundary converter + display helpers). Selling by the bundle, sealed-vs-loose tracking,
+  and a variable bundle size are deliberately out of scope — each a future spec, not a
+  tweak here.
+
 ## ADR-018 — Khata balance corrections are recorded adjustments excluded from cash, never edits to the opening balance
 - Date: 2026-06-28
 - Status: accepted

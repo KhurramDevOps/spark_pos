@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, TextInput, Select, Badge, ErrorText } from "../components/ui";
 import { useAuth } from "../features/auth/useAuth";
 import { formatPaisa, decimalText } from "../lib/format";
+import { stockLabel } from "../lib/stock";
 import { useItems, useCategories, useDeactivateItem, useReactivateItem } from "../features/inventory/hooks";
 import ItemForm from "../features/inventory/ItemForm";
 import AdjustStockModal from "../features/inventory/AdjustStockModal";
@@ -191,11 +192,25 @@ export default function InventoryPage() {
                 </td>
                 <td className="px-4 py-2.5 align-top text-fg-muted">{catName(item.categoryId)}</td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top text-right">
-                  <span className={`tabular-nums ${stockClass}`}>{decimalText(item.stockQty)}</span>{" "}
-                  <span className="text-xs text-fg-subtle">{item.baseUnit}</span>
+                  {item.bundle ? (
+                    <span className={`tabular-nums ${stockClass}`}>{stockLabel(item)}</span>
+                  ) : (
+                    <>
+                      <span className={`tabular-nums ${stockClass}`}>{decimalText(item.stockQty)}</span>{" "}
+                      <span className="text-xs text-fg-subtle">{item.baseUnit}</span>
+                    </>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums text-fg-muted">{formatPaisa(decimalText(item.avgCost))}</td>
-                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-fg">{formatPaisa(item.retailPrice)}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 align-top text-right tabular-nums font-medium text-fg">
+                  {item.bundle ? (
+                    <span className="rounded bg-indigo-50 px-1.5 py-0.5 font-semibold text-indigo-700 dark:bg-indigo-950/50 dark:text-indigo-300">
+                      {formatPaisa(item.retailPrice)}<span className="text-xs font-normal"> /gaz</span>
+                    </span>
+                  ) : (
+                    formatPaisa(item.retailPrice)
+                  )}
+                </td>
                 {isOwner && (
                   <td className="whitespace-nowrap px-4 py-2.5 align-top">
                     <div className="flex justify-end gap-1">

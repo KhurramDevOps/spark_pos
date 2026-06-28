@@ -295,7 +295,7 @@ export async function listSales({ customerId, from, to, paymentType, createdBy, 
 export async function getSale(id, { restrictToUserId = null } = {}) {
   const sale = await Sale.findById(id)
     .populate("customerId", "name")
-    .populate("lines.itemId", "name sku baseUnit");
+    .populate("lines.itemId", "name sku baseUnit bundle");
   if (!sale) throw httpError("sale not found", 404);
   // Workers may only view their own sales (§9.4).
   if (restrictToUserId && String(sale.createdBy) !== String(restrictToUserId)) {

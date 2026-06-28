@@ -42,6 +42,8 @@ export const createItemSchema = z.object({
   reorderLevel: reorderLevel.default(0),
   notes: z.string().trim().max(2000).optional(),
   warranties: warranties.optional(),
+  // Bought by the 90-gaz bundle (spec 011) — only valid on gaz items (refined below).
+  bundle: z.boolean().optional(),
   // Optional manual override; auto-generated when omitted.
   sku: skuField.optional(),
   // Opening stock; defaults to "0" (then no opening movement is written).
@@ -60,6 +62,9 @@ export const createItemSchema = z.object({
   if (hasCost && !hasQty) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: "openingQty must be greater than 0 when openingUnitCost is set", path: ["openingQty"] });
   }
+  if (v.bundle === true && v.baseUnit !== "gaz") {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "bundle items must have base unit gaz", path: ["bundle"] });
+  }
 });
 
 // All fields optional on update. stockQty, avgCost, and isActive are intentionally
@@ -74,12 +79,19 @@ export const updateItemSchema = z
     reorderLevel,
     notes: z.string().trim().max(2000).nullable(),
     warranties,
+    bundle: z.boolean(),
     sku: skuField,
     // Set or replace the image with a URL. Removal is via DELETE /items/:id/image.
     image: urlImage,
   })
   .partial()
-  .refine((data) => Object.keys(data).length > 0, { message: "no fields to update" });
+  .refine((data) => Object.keys(data).length > 0, { message: "no fields to update" })
+  // When both are present in the patch, enforce bundle ⇒ gaz. The cross-check against
+  // an UNCHANGED baseUnit (patch sets only bundle) is done server-side in updateItem.
+  .refine((d) => !(d.bundle === true && d.baseUnit !== undefined && d.baseUnit !== "gaz"), {
+    message: "bundle items must have base unit gaz",
+    path: ["bundle"],
+  });
 
 export const adjustStockSchema = z.object({
   countedQty: nonNegativeDecimalString,

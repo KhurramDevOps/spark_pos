@@ -88,6 +88,11 @@ const itemSchema = new Schema(
 
     notes: { type: String, trim: true },
 
+    // Bought by the 90-gaz bundle (spec 011 / ADR-019). Only valid when baseUnit is
+    // "gaz". A display/entry convention ONLY: it changes how purchases are entered and
+    // how stock is shown (÷90), never the canonical per-gaz stock/avgCost stored here.
+    bundle: { type: Boolean, default: false },
+
     // Warranty terms (spec 009). Default []; mutable metadata — editing affects only
     // FUTURE sales (past sales hold their own snapshot).
     warranties: { type: [warrantyTermSchema], default: [] },

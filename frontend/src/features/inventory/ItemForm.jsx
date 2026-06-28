@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Modal, Field, TextInput, Select, Button, ErrorText } from "../../components/ui";
 import { rupeesToPaisa, paisaToRupeesInput } from "../../lib/format";
 import { BASE_UNITS, createItemSchema, updateItemSchema } from "@shared/validation/item.js";
+import { BUNDLE_GAZ } from "@shared/inventory/bundle.js";
 import { useCreateItem, useUpdateItem } from "./hooks";
 import ImageEditor from "./ImageEditor";
 import RepairOpeningSection from "./RepairOpeningSection";
@@ -22,6 +23,7 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
     wholesalePrice: item?.wholesalePrice != null ? paisaToRupeesInput(item.wholesalePrice) : "",
     reorderLevel: String(item?.reorderLevel ?? 0),
     notes: item?.notes ?? "",
+    bundle: item?.bundle ?? false, // bought by the 90-gaz bundle (spec 011)
     sku: item?.sku ?? "",
     // Warranty terms (spec 009). Each row { label, durationValue(string), durationUnit }.
     warranties: (item?.warranties ?? []).map((w) => ({
@@ -53,6 +55,16 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
 
   const activeCategories = categories.filter((c) => c.isActive);
 
+  // Bundle items (spec 011): a gaz-only flag. The per-gaz price the owner types implies a
+  // per-bundle figure (×90), shown as a read-only hint so they can sanity-check it.
+  const isGaz = form.baseUnit === "gaz";
+  const perBundleHint = (rupeesStr) => {
+    if (!form.bundle || !isGaz) return undefined;
+    const n = Number(rupeesStr);
+    if (!Number.isFinite(n) || n <= 0) return undefined;
+    return `= Rs ${(n * BUNDLE_GAZ).toLocaleString("en-PK")} / bundle`;
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setErrors({});
@@ -69,6 +81,8 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
     payload.wholesalePrice =
       form.wholesalePrice.trim() === "" ? (isEdit ? null : undefined) : rupeesToPaisa(form.wholesalePrice);
     payload.notes = form.notes.trim() === "" ? (isEdit ? null : undefined) : form.notes.trim();
+    // Bundle is only meaningful on gaz items; force false otherwise (spec 011).
+    payload.bundle = form.baseUnit === "gaz" && form.bundle;
     // Warranty terms: drop blank leftover rows; convert duration to a number so the
     // shared schema validates it. Always send the array (empty clears on edit).
     payload.warranties = form.warranties
@@ -164,7 +178,11 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Retail price (Rs)" error={errors.retailPrice}>
+          <Field
+            label={form.bundle && isGaz ? "Retail price (Rs / gaz)" : "Retail price (Rs)"}
+            error={errors.retailPrice}
+            hint={perBundleHint(form.retailPrice)}
+          >
             <TextInput
               type="number"
               step="0.01"
@@ -174,7 +192,11 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
               placeholder="120.00"
             />
           </Field>
-          <Field label="Wholesale price (Rs)" error={errors.wholesalePrice} hint="optional">
+          <Field
+            label={form.bundle && isGaz ? "Wholesale price (Rs / gaz)" : "Wholesale price (Rs)"}
+            error={errors.wholesalePrice}
+            hint={perBundleHint(form.wholesalePrice) ?? "optional"}
+          >
             <TextInput
               type="number"
               step="0.01"
@@ -190,6 +212,27 @@ export default function ItemForm({ item, categories, onClose, prefill }) {
             <TextInput type="number" min="0" value={form.reorderLevel} onChange={set("reorderLevel")} />
           </Field>
         </div>
+
+        {/* Bundle flag (spec 011) — gaz-only. You buy by the 90-gaz bundle, sell by the gaz. */}
+        <label
+          className={`flex items-start gap-2 text-sm ${isGaz ? "text-fg-muted" : "text-fg-subtle"}`}
+          title={isGaz ? undefined : "Only gaz items can be sold as bundles"}
+        >
+          <input
+            type="checkbox"
+            className="mt-0.5 rounded border-line"
+            checked={form.bundle && isGaz}
+            disabled={!isGaz}
+            onChange={(e) => setForm((f) => ({ ...f, bundle: e.target.checked }))}
+          />
+          <span>
+            Bought by the bundle ({BUNDLE_GAZ} gaz)
+            <span className="block text-xs text-fg-subtle">
+              Buy in bundles (price per bundle); stock shows as bundles + loose gaz. You still sell by the gaz.
+              {!isGaz && " Set base unit to gaz to enable."}
+            </span>
+          </span>
+        </label>
 
         {!isEdit && (
           <div className="rounded-md border border-line p-3">

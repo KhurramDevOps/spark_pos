@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, TextInput, Select, ErrorText } from "../components/ui";
 import { createSaleSchema } from "@shared/validation/sale.js";
 import { decimalText, rupeesToPaisa, paisaToRupeesInput } from "../lib/format";
+import { stockLabel } from "../lib/stock";
 import ItemPicker from "../features/purchases/ItemPicker";
 import { useCreateSale, useCustomers, useCreateCustomer } from "../features/sales/hooks";
 
@@ -291,7 +292,7 @@ export default function SalesPage() {
                     </div>
                     {l.item && (
                       <div className="mb-1 flex items-center gap-2 text-xs text-fg-subtle">
-                        <span>in stock: {decimalText(l.item.stockQty)} {l.item.baseUnit}</span>
+                        <span>in stock: {l.item.bundle ? stockLabel(l.item) : `${decimalText(l.item.stockQty)} ${l.item.baseUnit}`}</span>
                         <span>·</span>
                         <span>cost {rs(Number(decimalText(l.item.avgCost)) / 100)}</span>
                       </div>

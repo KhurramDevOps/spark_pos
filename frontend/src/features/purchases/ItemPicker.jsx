@@ -3,7 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { searchItems } from "../inventory/api";
 import { TextInput } from "../../components/ui";
 import ItemImage from "../../components/ItemImage";
-import { decimalText } from "../../lib/format";
+import { decimalText, formatPaisa } from "../../lib/format";
+import { stockLabel } from "../../lib/stock";
 
 /**
  * Search-and-pick a single item by name or SKU (active items only). Once picked,
@@ -73,8 +74,13 @@ export default function ItemPicker({ selected, onSelect, onClear, autoFocus }) {
                     <span className="font-mono text-xs text-fg-muted">{it.sku}</span>
                   </span>
                 </span>
-                <span className="shrink-0 text-xs text-fg-subtle">
-                  {decimalText(it.stockQty)} {it.baseUnit}
+                <span className="shrink-0 text-right text-xs text-fg-subtle">
+                  {it.bundle ? stockLabel(it) : `${decimalText(it.stockQty)} ${it.baseUnit}`}
+                  {it.bundle && (
+                    <span className="block font-semibold text-indigo-600 dark:text-indigo-300">
+                      {formatPaisa(it.retailPrice)} /gaz
+                    </span>
+                  )}
                 </span>
               </button>
             ))

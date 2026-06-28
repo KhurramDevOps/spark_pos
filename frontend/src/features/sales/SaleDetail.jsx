@@ -178,7 +178,13 @@ export default function SaleDetail({ saleId, onClose }) {
                         {decimalText(l.qty)}
                         {l.itemId?.baseUnit && <span className="ml-1 text-xs text-fg-subtle">{l.itemId.baseUnit}</span>}
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums">{rsFromPaisa(price)}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">
+                        {l.itemId?.bundle ? (
+                          <span className="font-semibold text-indigo-600 dark:text-indigo-300">{rsFromPaisa(price)} <span className="text-xs font-normal">/gaz</span></span>
+                        ) : (
+                          rsFromPaisa(price)
+                        )}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums text-fg-muted">{rsFromPaisa(cost)}</td>
                       <td className={`px-3 py-2 text-right tabular-nums font-medium ${profit < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                         {formatPaisa(Math.round((price - cost) * qty))}
