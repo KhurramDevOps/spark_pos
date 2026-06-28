@@ -17,6 +17,7 @@ export const create = wrap(async (req, res) => {
     name: v.name,
     phone: v.phone,
     openingBalance: String(rupeesToPaisa(v.openingBalance, "openingBalance").value),
+    promisedPayBy: v.promisedPayBy ?? null,
   });
   res.status(201).json(customer);
 });

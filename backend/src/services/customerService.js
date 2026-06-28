@@ -35,9 +35,9 @@ function httpError(message, status) {
  * then runs as credit sales (+) and payments (−) move it. Mirrors createSupplier.
  * @param {object} input - { name, phone?, openingBalance? (paisa string) }
  */
-export async function createCustomer({ name, phone, openingBalance = "0" }) {
+export async function createCustomer({ name, phone, openingBalance = "0", promisedPayBy = null }) {
   const ob = toDecimal128(openingBalance, "openingBalance");
-  return Customer.create({ name, phone, openingBalance: ob, balance: ob });
+  return Customer.create({ name, phone, openingBalance: ob, balance: ob, promisedPayBy });
 }
 
 /**
@@ -97,15 +97,18 @@ export async function getCustomer(id) {
 }
 
 /**
- * Edit a customer's name/phone. openingBalance and balance are NOT editable here
- * (immutable starting point + cached running value). Mirrors updateSupplier.
- * @param {object} patch - { name?, phone? (string|null) }
+ * Edit a customer's name/phone/promised-pay-by date. openingBalance and balance are
+ * NOT editable here (immutable starting point + cached running value; corrections go
+ * through the adjustment flow). Mirrors updateSupplier.
+ * @param {object} patch - { name?, phone? (string|null), promisedPayBy? (Date|null) }
  */
 export async function updateCustomer(id, patch) {
   const customer = await Customer.findById(id);
   if (!customer) throw httpError("customer not found", 404);
   if (patch.name !== undefined) customer.name = patch.name;
   if (patch.phone !== undefined) customer.phone = patch.phone ?? undefined;
+  // null clears the promise; a Date sets it.
+  if (patch.promisedPayBy !== undefined) customer.promisedPayBy = patch.promisedPayBy ?? null;
   await customer.save();
   return customer;
 }

@@ -26,6 +26,11 @@ const customerSchema = new Schema(
       default: () => mongoose.Types.Decimal128.fromString("0"),
     },
 
+    // Optional "promised to pay by" date for an outstanding khata (slice 4). When this
+    // date has passed and `balance > 0`, the UI highlights the customer as overdue.
+    // Derived display only — no money/stock effect. null = no promise on file.
+    promisedPayBy: { type: Date, default: null },
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

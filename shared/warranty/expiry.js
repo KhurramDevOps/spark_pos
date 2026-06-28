@@ -3,14 +3,10 @@
 // an Asia/Karachi civil date (ADR-010: fixed +5, no DST). All comparisons are at DAY
 // granularity — a warranty is valid through the END of its expiry day (inclusive).
 
-const KARACHI_OFFSET_MIN = 300; // ADR-010
+import { karachiYMD, ymdToInt } from "../date/karachi.js";
 
-/** The Asia/Karachi civil { year, month(1-12), day } for an instant (Date | ISO). */
-export function karachiYMD(input) {
-  const d = input instanceof Date ? input : new Date(input);
-  const shifted = new Date(d.getTime() + KARACHI_OFFSET_MIN * 60 * 1000);
-  return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1, day: shifted.getUTCDate() };
-}
+// Re-exported so existing warranty importers keep their import site unchanged.
+export { karachiYMD, ymdToInt };
 
 /** Days in a 1-based month (handles leap Feb). */
 function daysInMonth(year, month) {
@@ -46,11 +42,6 @@ export function warrantyExpiry(saleDate, term) {
   }
   const maxDay = daysInMonth(y, m);
   return { year: y, month: m, day: Math.min(day, maxDay) };
-}
-
-/** Compare civil dates as integers (yyyymmdd) for day-granular ordering. */
-export function ymdToInt({ year, month, day }) {
-  return year * 10000 + month * 100 + day;
 }
 
 /**

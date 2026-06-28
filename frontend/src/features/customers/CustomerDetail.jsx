@@ -4,6 +4,7 @@ import { useAuth } from "../auth/useAuth";
 import { formatPaisa, decimalText } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
 import { useCustomer, useCustomerPayments, useCustomerCreditSales } from "./hooks";
+import { khataOverdue, promisedDateLabel } from "./overdue";
 import CustomerPaymentForm from "./CustomerPaymentForm";
 import CustomerForm from "./CustomerForm";
 
@@ -99,9 +100,15 @@ export default function CustomerDetail({ customerId, onClose }) {
         <div className="space-y-4">
           {/* Header: balance + meta */}
           <div className="flex items-start justify-between rounded-md bg-muted p-3">
-            <div className="text-sm text-fg-muted">
+            <div className="space-y-1 text-sm text-fg-muted">
               {customer.phone ? <div>{customer.phone}</div> : <div className="text-fg-subtle">No phone</div>}
               {!customer.isActive && <Badge tone="gray">Inactive</Badge>}
+              {customer.promisedPayBy &&
+                (khataOverdue(customer) ? (
+                  <div><Badge tone="red">Overdue · promised {promisedDateLabel(customer)}</Badge></div>
+                ) : (
+                  <div className="text-xs text-fg-subtle">Promised to pay by {promisedDateLabel(customer)}</div>
+                ))}
             </div>
             <div className="text-right">
               <div className="text-xs uppercase tracking-wide text-fg-subtle">Khata balance</div>

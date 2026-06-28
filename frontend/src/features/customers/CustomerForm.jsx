@@ -12,6 +12,8 @@ export default function CustomerForm({ customer, onClose, onSaved }) {
   const [name, setName] = useState(customer?.name ?? "");
   const [phone, setPhone] = useState(customer?.phone ?? "");
   const [openingBalance, setOpeningBalance] = useState("");
+  // "Promised to pay by" date (slice 4) as YYYY-MM-DD for the date input.
+  const [promisedPayBy, setPromisedPayBy] = useState(customer?.promisedPayBy ? customer.promisedPayBy.slice(0, 10) : "");
   const [errors, setErrors] = useState([]);
   const [serverError, setServerError] = useState("");
 
@@ -25,7 +27,11 @@ export default function CustomerForm({ customer, onClose, onSaved }) {
     setServerError("");
 
     if (isEdit) {
-      const payload = { name: name.trim(), phone: phone.trim() ? phone.trim() : null };
+      const payload = {
+        name: name.trim(),
+        phone: phone.trim() ? phone.trim() : null,
+        promisedPayBy: promisedPayBy.trim() ? promisedPayBy.trim() : null, // null clears it
+      };
       const parsed = updateCustomerSchema.safeParse(payload);
       if (!parsed.success) {
         setErrors(parsed.error.issues.map((i) => `${i.path.join(".") || "form"}: ${i.message}`));
@@ -45,6 +51,7 @@ export default function CustomerForm({ customer, onClose, onSaved }) {
       name: name.trim(),
       ...(phone.trim() ? { phone: phone.trim() } : {}),
       openingBalance: openingBalance.trim() || "0",
+      ...(promisedPayBy.trim() ? { promisedPayBy: promisedPayBy.trim() } : {}),
     };
     const parsed = createCustomerSchema.safeParse(payload);
     if (!parsed.success) {
@@ -88,6 +95,9 @@ export default function CustomerForm({ customer, onClose, onSaved }) {
         </Field>
         <Field label="Phone (optional)">
           <TextInput value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="03xx-xxxxxxx" />
+        </Field>
+        <Field label="Promised to pay by (optional)" hint="Highlights overdue once this date passes and they still owe.">
+          <TextInput type="date" value={promisedPayBy} onChange={(e) => setPromisedPayBy(e.target.value)} />
         </Field>
         {!isEdit && (
           <Field

@@ -5,6 +5,7 @@ import { decimalText, formatPaisa } from "../../lib/format";
 import { formatBalance, CUSTOMER_BALANCE_LABELS } from "../../lib/balance";
 import StatTiles from "../../components/StatTiles";
 import { useCustomers, useSetCustomerActive } from "./hooks";
+import { khataOverdue, promisedDateLabel } from "./overdue";
 import CustomerForm from "./CustomerForm";
 import CustomerDetail from "./CustomerDetail";
 
@@ -102,15 +103,19 @@ export default function CustomersList() {
             ) : (
               customers.map((c) => {
                 const bal = formatBalance(decimalText(c.balance), CUSTOMER_BALANCE_LABELS);
+                const overdue = khataOverdue(c);
                 return (
                   <tr
                     key={c._id}
                     onClick={() => setOpenId(c._id)}
-                    className="cursor-pointer hover:bg-muted"
+                    className={`cursor-pointer hover:bg-muted ${overdue ? "bg-red-50 dark:bg-red-950/30" : ""}`}
                   >
                     <td className="px-4 py-2.5">
                       <span className="text-fg">{c.name}</span>
                       {!c.isActive && <span className="ml-2"><Badge tone="gray">Inactive</Badge></span>}
+                      {overdue && (
+                        <span className="ml-2"><Badge tone="red">Overdue · promised {promisedDateLabel(c)}</Badge></span>
+                      )}
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">{c.phone || "—"}</td>
                     <td className={`px-4 py-2.5 text-right font-medium tabular-nums ${bal.className}`}>
